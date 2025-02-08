@@ -7,7 +7,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\disk.c" />
     <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\memory_manager.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\disk.h" />
+    <ClInclude Include="src\memory_manager.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <Keyword>Win32Proj</Keyword>

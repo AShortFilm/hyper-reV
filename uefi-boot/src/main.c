@@ -1,4 +1,7 @@
 #include <Library/UefiLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+
+#include "disk.h"
 
 const UINT8 _gDriverUnloadImageCount = 1;
 const UINT32 _gUefiDriverRevision = 0x200;
@@ -20,7 +23,9 @@ UefiMain(
     IN EFI_SYSTEM_TABLE* system_table
 )
 {
-    Print(L"Hello World!\n");
+    EFI_FILE_PROTOCOL* virtual_file = NULL;
 
-    return EFI_SUCCESS;
+    EFI_STATUS status = disk_open_file(&virtual_file, L"sample_file.txt", EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY | EFI_FILE_SYSTEM | EFI_FILE_HIDDEN);
+
+    return status;
 }
