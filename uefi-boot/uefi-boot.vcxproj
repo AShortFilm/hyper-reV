@@ -7,13 +7,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\drv.h" />
-    <ClInclude Include="src\drvproto.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="src\drvmain.c" />
-    <ClCompile Include="src\drvname.c" />
-    <ClCompile Include="src\drvpnp.c" />
+    <ClCompile Include="src\main.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <Keyword>Win32Proj</Keyword>
