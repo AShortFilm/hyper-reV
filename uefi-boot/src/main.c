@@ -24,8 +24,18 @@ UefiMain(
 )
 {
     EFI_FILE_PROTOCOL* virtual_file = NULL;
+    EFI_HANDLE device_handle = NULL;
 
-    EFI_STATUS status = disk_open_file(&virtual_file, L"sample_file.txt", EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY | EFI_FILE_SYSTEM | EFI_FILE_HIDDEN);
+    CHAR16* file_name = L"sample_file.txt";
+
+    EFI_STATUS status = disk_open_file(&virtual_file, &device_handle, file_name, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY | EFI_FILE_SYSTEM | EFI_FILE_HIDDEN);
+
+    if (status == EFI_SUCCESS)
+    {
+        EFI_DEVICE_PATH* device_path = NULL;
+
+        status = disk_get_device_path(&device_path, device_handle, file_name);
+    }
 
     return status;
 }

@@ -2,6 +2,7 @@
 #include "memory_manager.h"
 
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/DevicePathLib.h>
 
 EFI_STATUS disk_get_all_file_system_handles(EFI_HANDLE** handle_list_out, UINT64* handle_count_out)
 {
@@ -10,10 +11,10 @@ EFI_STATUS disk_get_all_file_system_handles(EFI_HANDLE** handle_list_out, UINT64
     return gBS->LocateHandleBuffer(ByProtocol, &simple_fs_protocol_guid, NULL, handle_count_out, handle_list_out);
 }
 
-EFI_STATUS disk_open_file_system(EFI_SIMPLE_FILE_SYSTEM_PROTOCOL** file_system_out, EFI_HANDLE* handle)
+EFI_STATUS disk_open_file_system(EFI_SIMPLE_FILE_SYSTEM_PROTOCOL** file_system_out, EFI_HANDLE handle)
 {
     EFI_GUID simple_fs_protocol_guid = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
-
+    
     return gBS->HandleProtocol(handle, &simple_fs_protocol_guid, file_system_out);
 }
 
@@ -27,7 +28,7 @@ EFI_STATUS disk_open_file_on_volume(EFI_FILE_PROTOCOL** file_handle_out, EFI_FIL
     return volume->Open(volume, file_handle_out, file_path, open_mode, attributes);
 }
 
-EFI_STATUS disk_open_file(EFI_FILE_PROTOCOL** file_handle_out, CHAR16* file_path, UINT64 open_mode, UINT64 attributes)
+EFI_STATUS disk_open_file(EFI_FILE_PROTOCOL** file_handle_out, EFI_HANDLE* file_system_handle_out_opt, CHAR16* file_path, UINT64 open_mode, UINT64 attributes)
 {
     EFI_HANDLE* handle_list = NULL;
     UINT64 handle_count = 0;
@@ -63,6 +64,11 @@ EFI_STATUS disk_open_file(EFI_FILE_PROTOCOL** file_handle_out, CHAR16* file_path
 
         if (status == EFI_SUCCESS)
         {
+            if (file_system_handle_out_opt != NULL)
+            {
+                *file_system_handle_out_opt = handle_list[i];
+            }
+
             mm_free_pool(handle_list);
 
             return EFI_SUCCESS;
@@ -72,4 +78,11 @@ EFI_STATUS disk_open_file(EFI_FILE_PROTOCOL** file_handle_out, CHAR16* file_path
     mm_free_pool(handle_list);
 
     return EFI_NOT_FOUND;
+}
+
+EFI_STATUS disk_get_device_path(EFI_DEVICE_PATH** device_path_out, EFI_HANDLE device_handle, CHAR16* file_path)
+{
+    *device_path_out = FileDevicePath(device_handle, file_path);
+
+    return (*device_path_out != NULL) ? EFI_SUCCESS : EFI_OUT_OF_RESOURCES;
 }
