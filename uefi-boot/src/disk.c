@@ -80,6 +80,11 @@ EFI_STATUS disk_open_file(EFI_FILE_PROTOCOL** file_handle_out, EFI_HANDLE* file_
     return EFI_NOT_FOUND;
 }
 
+EFI_STATUS disk_close_file(EFI_FILE_PROTOCOL* file_handle)
+{
+    return file_handle->Close(file_handle);
+}
+
 EFI_STATUS disk_get_device_path(EFI_DEVICE_PATH** device_path_out, EFI_HANDLE device_handle, CHAR16* file_path)
 {
     *device_path_out = FileDevicePath(device_handle, file_path);

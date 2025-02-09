@@ -50,6 +50,8 @@ UefiMain(
                 status = start_image(loaded_image);
             }
         }
+
+        disk_close_file(virtual_file);
     }
 
     return status;
