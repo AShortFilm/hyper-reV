@@ -85,6 +85,48 @@ EFI_STATUS disk_close_file(EFI_FILE_PROTOCOL* file_handle)
     return file_handle->Close(file_handle);
 }
 
+EFI_STATUS disk_get_specified_type_file_info(void** buffer_out, UINT64* buffer_size_out, EFI_FILE_PROTOCOL* file_handle, EFI_GUID* information_type)
+{
+    UINT64 buffer_size = 0;
+
+    EFI_STATUS status = file_handle->GetInfo(file_handle, information_type, &buffer_size, NULL);
+
+    if (status != EFI_BUFFER_TOO_SMALL)
+    {
+        return EFI_BAD_BUFFER_SIZE;
+    }
+
+    status = mm_allocate_pool(buffer_out, buffer_size, EfiBootServicesData);
+
+    if (status != EFI_SUCCESS)
+    {
+        return status;
+    }
+
+    status = file_handle->GetInfo(file_handle, information_type, &buffer_size, *buffer_out);
+
+    return EFI_SUCCESS;
+}
+
+EFI_STATUS disk_get_generic_file_info(EFI_FILE_INFO** file_info_out, UINT64* file_info_size_out, EFI_FILE_PROTOCOL* file_handle)
+{
+    EFI_GUID information_type = EFI_FILE_INFO_ID;
+
+    return disk_get_specified_type_file_info(file_info_out, file_info_size_out, file_handle, &information_type);
+}
+
+EFI_STATUS disk_set_specified_type_file_info(EFI_FILE_PROTOCOL* file_handle, EFI_GUID* information_type, void* buffer, UINT64 buffer_size)
+{
+    return file_handle->SetInfo(file_handle, information_type, buffer_size, buffer);
+}
+
+EFI_STATUS disk_set_generic_file_info(EFI_FILE_PROTOCOL* file_handle, EFI_FILE_INFO* file_info, UINT64 file_info_size)
+{
+    EFI_GUID information_type = EFI_FILE_INFO_ID;
+
+    return disk_set_specified_type_file_info(file_handle, &information_type, file_info, file_info_size);
+}
+
 EFI_STATUS disk_get_device_path(EFI_DEVICE_PATH** device_path_out, EFI_HANDLE device_handle, CHAR16* file_path)
 {
     *device_path_out = FileDevicePath(device_handle, file_path);
