@@ -102,23 +102,21 @@ EFI_STATUS disk_delete_file(EFI_FILE_PROTOCOL* file_handle)
 
 EFI_STATUS disk_get_specified_type_file_info(void** buffer_out, UINT64* buffer_size_out, EFI_FILE_PROTOCOL* file_handle, EFI_GUID* information_type)
 {
-    UINT64 buffer_size = 0;
-
-    EFI_STATUS status = file_handle->GetInfo(file_handle, information_type, &buffer_size, NULL);
+    EFI_STATUS status = file_handle->GetInfo(file_handle, information_type, buffer_size_out, NULL);
 
     if (status != EFI_BUFFER_TOO_SMALL)
     {
         return EFI_BAD_BUFFER_SIZE;
     }
 
-    status = mm_allocate_pool(buffer_out, buffer_size, EfiBootServicesData);
+    status = mm_allocate_pool(buffer_out, *buffer_size_out, EfiBootServicesData);
 
     if (status != EFI_SUCCESS)
     {
         return status;
     }
 
-    status = file_handle->GetInfo(file_handle, information_type, &buffer_size, *buffer_out);
+    status = file_handle->GetInfo(file_handle, information_type, buffer_size_out, *buffer_out);
 
     return EFI_SUCCESS;
 }
