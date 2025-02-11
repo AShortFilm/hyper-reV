@@ -1,7 +1,7 @@
 #include "bootmgfw.h"
-#include "memory_manager.h"
-#include "image.h"
-#include "disk.h"
+#include "../memory_manager/memory_manager.h"
+#include "../image/image.h"
+#include "../disk/disk.h"
 
 #define d_bootmgfw_path L"\\efi\\microsoft\\boot\\bootmgfw.efi"
 #define d_path_original_bootmgfw L"\\efi\\microsoft\\boot\\bootmgfw.original.efi"

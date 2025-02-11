@@ -1,7 +1,7 @@
 #include <Library/UefiLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
-#include "bootmgfw.h"
+#include "bootmgfw/bootmgfw.h"
 
 const UINT8 _gDriverUnloadImageCount = 1;
 const UINT32 _gUefiDriverRevision = 0x200;

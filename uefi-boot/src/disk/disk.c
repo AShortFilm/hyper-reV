@@ -1,5 +1,5 @@
 #include "disk.h"
-#include "memory_manager.h"
+#include "../memory_manager/memory_manager.h"
 
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DevicePathLib.h>
