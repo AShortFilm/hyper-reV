@@ -9,6 +9,7 @@
   <ItemGroup>
     <ClCompile Include="src\bootmgfw\bootmgfw.c" />
     <ClCompile Include="src\disk\disk.c" />
+    <ClCompile Include="src\hooks\hooks.c" />
     <ClCompile Include="src\image\image.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\memory_manager\memory_manager.c" />
@@ -16,6 +17,7 @@
   <ItemGroup>
     <ClInclude Include="src\bootmgfw\bootmgfw.h" />
     <ClInclude Include="src\disk\disk.h" />
+    <ClInclude Include="src\hooks\hooks.h" />
     <ClInclude Include="src\image\image.h" />
     <ClInclude Include="src\memory_manager\memory_manager.h" />
   </ItemGroup>
