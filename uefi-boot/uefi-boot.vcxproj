@@ -20,6 +20,7 @@
     <ClInclude Include="src\hooks\hooks.h" />
     <ClInclude Include="src\image\image.h" />
     <ClInclude Include="src\memory_manager\memory_manager.h" />
+    <ClInclude Include="src\ntdef\ntdef.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <Keyword>Win32Proj</Keyword>

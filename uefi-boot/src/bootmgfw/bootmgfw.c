@@ -3,13 +3,14 @@
 #include "../hooks/hooks.h"
 #include "../image/image.h"
 #include "../disk/disk.h"
+#include "../ntdef/ntdef.h"
 
 #define d_bootmgfw_path L"\\efi\\microsoft\\boot\\bootmgfw.efi"
 #define d_path_original_bootmgfw L"\\efi\\microsoft\\boot\\bootmgfw.original.efi"
 
 #define unknown_param_t UINT64
 
-typedef UINT64(*bootmgfw_load_pe_image_t)(UINT64 a1, INT32 a2, UINT64* image_base, UINT32* image_size, UINT64* a5, UINT32* a6, UINT32* a7, UINT64 a8, UINT64 a9, unknown_param_t a10, unknown_param_t a11, unknown_param_t a12, unknown_param_t a13, unknown_param_t a14, unknown_param_t a15);
+typedef UINT64(*bootmgfw_load_pe_image_t)(bl_file_info_t* file_info, INT32 a2, UINT64* image_base, UINT32* image_size, UINT64* a5, UINT32* a6, UINT32* a7, UINT64 a8, UINT64 a9, unknown_param_t a10, unknown_param_t a11, unknown_param_t a12, unknown_param_t a13, unknown_param_t a14, unknown_param_t a15);
 
 hook_data_t* bootmgfw_load_pe_image_hook_data = NULL;
 
@@ -113,15 +114,20 @@ EFI_STATUS bootmgfw_restore_original_file(EFI_HANDLE* device_handle_out)
     return status;
 }
 
-UINT64 bootmgfw_load_pe_image_detour(UINT64 a1, INT32 a2, UINT64* image_base, UINT32* image_size, UINT64* a5, UINT32* a6, UINT32* a7, UINT64 a8, UINT64 a9, unknown_param_t a10, unknown_param_t a11, unknown_param_t a12, unknown_param_t a13, unknown_param_t a14, unknown_param_t a15)
+UINT64 bootmgfw_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64* image_base, UINT32* image_size, UINT64* a5, UINT32* a6, UINT32* a7, UINT64 a8, UINT64 a9, unknown_param_t a10, unknown_param_t a11, unknown_param_t a12, unknown_param_t a13, unknown_param_t a14, unknown_param_t a15)
 {
     hook_disable(bootmgfw_load_pe_image_hook_data);
 
     bootmgfw_load_pe_image_t original_subroutine = (bootmgfw_load_pe_image_t)bootmgfw_load_pe_image_hook_data->hooked_subroutine_address;
 
-    UINT64 return_value = original_subroutine(a1, a2, image_base, image_size, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15);
+    UINT64 return_value = original_subroutine(file_info, a2, image_base, image_size, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15);
 
     hook_enable(bootmgfw_load_pe_image_hook_data);
+
+    if (StrStr(file_info->file_name, L"winload.efi") != NULL)
+    {
+        
+    }
 
     return return_value;
 }
