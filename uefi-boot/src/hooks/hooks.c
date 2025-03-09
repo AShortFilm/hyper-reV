@@ -10,7 +10,7 @@ EFI_STATUS hook_create(hook_data_t** hook_data_out, void* subroutine_to_hook, vo
 
 	hook_data_t* allocated_hook_data = NULL;
 
-	EFI_STATUS status = mm_allocate_pool(&allocated_hook_data, sizeof(hook_data_t), EfiBootServicesData);
+	EFI_STATUS status = mm_allocate_pool(&allocated_hook_data, sizeof(hook_data_t), EfiRuntimeServicesData);
 
 	if (status != EFI_SUCCESS)
 	{
