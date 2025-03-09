@@ -13,6 +13,7 @@
     <ClCompile Include="src\image\image.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\memory_manager\memory_manager.c" />
+    <ClCompile Include="src\winload\winload.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bootmgfw\bootmgfw.h" />
@@ -21,6 +22,7 @@
     <ClInclude Include="src\image\image.h" />
     <ClInclude Include="src\memory_manager\memory_manager.h" />
     <ClInclude Include="src\ntdef\ntdef.h" />
+    <ClInclude Include="src\winload\winload.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <Keyword>Win32Proj</Keyword>

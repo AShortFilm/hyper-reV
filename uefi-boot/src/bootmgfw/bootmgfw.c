@@ -1,4 +1,5 @@
 #include "bootmgfw.h"
+#include "../winload/winload.h"
 #include "../memory_manager/memory_manager.h"
 #include "../hooks/hooks.h"
 #include "../image/image.h"
@@ -122,7 +123,14 @@ UINT64 bootmgfw_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64
 
     if (StrStr(file_info->file_name, L"winload.efi") != NULL)
     {
-        
+        if (winload_place_hooks(*image_base, (UINT64)*image_size) == EFI_SUCCESS)
+        {
+            Print(L"success in winload hooks\n");
+        }
+        else
+        {
+            Print(L"error in winload hooks\n");
+        }
     }
 
     return return_value;
