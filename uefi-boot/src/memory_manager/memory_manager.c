@@ -13,8 +13,13 @@ EFI_STATUS mm_free_pool(VOID* buffer)
 
 void mm_copy_memory(UINT8* destination, UINT8* source, UINT64 size)
 {
+	UINT64 original_cr0 = AsmReadCr0();
+	AsmWriteCr0(original_cr0 & ~0x10000);
+
 	for (UINT64 i = 0; i < size; i++)
 	{
 		destination[i] = source[i];
 	}
+
+	AsmWriteCr0(original_cr0);
 }
