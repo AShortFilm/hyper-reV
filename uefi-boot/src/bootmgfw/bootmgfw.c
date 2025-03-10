@@ -119,8 +119,6 @@ UINT64 bootmgfw_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64
 
     UINT64 return_value = original_subroutine(file_info, a2, image_base, image_size, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15);
 
-    hook_enable(bootmgfw_load_pe_image_hook_data);
-
     if (StrStr(file_info->file_name, L"winload.efi") != NULL)
     {
         if (winload_place_hooks(*image_base, (UINT64)*image_size) == EFI_SUCCESS)
@@ -131,7 +129,11 @@ UINT64 bootmgfw_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64
         {
             Print(L"error in winload hooks\n");
         }
+
+        return return_value;
     }
+
+    hook_enable(bootmgfw_load_pe_image_hook_data);
 
     return return_value;
 }
