@@ -7,17 +7,21 @@
 
 #include <IndustryStandard/PeImage.h>
 
+CHAR8* code_ref_to_vmexit_handler = NULL;
 CHAR8* original_vmexit_handler = NULL;
+INT32 original_vmexit_handler_rva = 0;
 
 hook_data_t hvloader_launch_hv_hook_data = { 0 };
 hook_data_t hv_vmexit_hook_data = { 0 };
 
 typedef void(*hvloader_launch_hv_t)(cr3 a1, virtual_address_t a2, UINT64 a3, UINT64 a4);
-typedef void(*vmexit_handler_t)(UINT64 a1, UINT64 a2);
+typedef UINT64(*vmexit_handler_t)(UINT64 a1, UINT64 a2, UINT64 a3, UINT64 a4);
 
-void vmexit_detour(UINT64 a1, UINT64 a2)
+UINT64 vmexit_detour(UINT64 a1, UINT64 a2, UINT64 a3, UINT64 a4)
 {
-    ((vmexit_handler_t)original_vmexit_handler)(a1, a2);
+    mm_copy_memory(code_ref_to_vmexit_handler + 1, (UINT8*)&original_vmexit_handler_rva, sizeof(original_vmexit_handler_rva));
+
+    return ((vmexit_handler_t)original_vmexit_handler)(a1, a2, a3, a4);
 }
 
 UINT64 get_hyperv_base(virtual_address_t entry_point)
@@ -81,8 +85,6 @@ void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
 
         UINT64 size_of_image = (UINT64)nt_headers->OptionalHeader.SizeOfImage;
 
-        CHAR8* code_ref_to_vmexit_handler = NULL;
-
         EFI_STATUS status = scan_image(&code_ref_to_vmexit_handler, (CHAR8*)hyperv_base, size_of_image, "\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x74", "x????x????x");
 
         if (status == EFI_SUCCESS)
@@ -99,7 +101,8 @@ void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
                 {
                     hook_enable(&hv_vmexit_hook_data);
 
-                    original_vmexit_handler = (code_ref_to_vmexit_handler + 5) + *(UINT32*)(code_ref_to_vmexit_handler + 1);
+                    original_vmexit_handler_rva = *(INT32*)(code_ref_to_vmexit_handler + 1);
+                    original_vmexit_handler = (code_ref_to_vmexit_handler + 5) + original_vmexit_handler_rva;
 
                     UINT32 new_call_rva = (UINT32)(code_cave - (code_ref_to_vmexit_handler + 5));
 
