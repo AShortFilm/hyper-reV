@@ -1,5 +1,4 @@
 #include <Library/UefiLib.h>
-#include <Library/UefiBootServicesTableLib.h>
 
 #include "bootmgfw/bootmgfw.h"
 

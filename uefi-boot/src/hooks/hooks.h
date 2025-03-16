@@ -19,9 +19,6 @@ typedef struct _hook_data_t
 	UINT8 original_bytes[14];
 } hook_data_t;
 
-EFI_STATUS hook_create(hook_data_t** hook_data_out, void* subroutine_to_hook, void* subroutine_to_jmp_to);
+EFI_STATUS hook_create(hook_data_t* hook_data_out, void* subroutine_to_hook, void* subroutine_to_jmp_to);
 EFI_STATUS hook_enable(hook_data_t* hook_data);
 EFI_STATUS hook_disable(hook_data_t* hook_data);
-
-// usage: hook must be disabled before deleting
-EFI_STATUS hook_delete(hook_data_t* hook_data);

@@ -1,5 +1,11 @@
 #include "memory_manager.h"
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
+
+EFI_STATUS mm_allocate_pages(VOID** buffer_out, UINT64 page_count, EFI_MEMORY_TYPE memory_type)
+{
+	return gBS->AllocatePages(AllocateAnyPages, memory_type, page_count, (EFI_PHYSICAL_ADDRESS*)buffer_out);
+}
 
 EFI_STATUS mm_allocate_pool(VOID** buffer_out, UINT64 size, EFI_MEMORY_TYPE memory_type)
 {

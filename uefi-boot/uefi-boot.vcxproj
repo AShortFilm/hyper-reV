@@ -10,18 +10,22 @@
     <ClCompile Include="src\bootmgfw\bootmgfw.c" />
     <ClCompile Include="src\disk\disk.c" />
     <ClCompile Include="src\hooks\hooks.c" />
+    <ClCompile Include="src\hvloader\hvloader.c" />
     <ClCompile Include="src\image\image.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\memory_manager\memory_manager.c" />
     <ClCompile Include="src\winload\winload.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ext\ia32-doc\ia32_compact.h" />
     <ClInclude Include="src\bootmgfw\bootmgfw.h" />
     <ClInclude Include="src\disk\disk.h" />
     <ClInclude Include="src\hooks\hooks.h" />
+    <ClInclude Include="src\hvloader\hvloader.h" />
     <ClInclude Include="src\image\image.h" />
     <ClInclude Include="src\memory_manager\memory_manager.h" />
-    <ClInclude Include="src\ntdef\ntdef.h" />
+    <ClInclude Include="src\structures\ntdef.h" />
+    <ClInclude Include="src\structures\virtual_address.h" />
     <ClInclude Include="src\winload\winload.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -31,9 +35,14 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="$(ProjectDir)\uefi.default.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
   <Import Project="$(ProjectDir)\uefi.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
   <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(ProjectDir)ext;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>UefiDriverEntryPoint.lib;%(AdditionalDependencies)</AdditionalDependencies>

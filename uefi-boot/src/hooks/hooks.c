@@ -1,20 +1,11 @@
 #include "hooks.h"
 #include "../memory_manager/memory_manager.h"
 
-EFI_STATUS hook_create(hook_data_t** hook_data_out, void* subroutine_to_hook, void* subroutine_to_jmp_to)
+EFI_STATUS hook_create(hook_data_t* hook_data_out, void* subroutine_to_hook, void* subroutine_to_jmp_to)
 {
 	if (hook_data_out == NULL || subroutine_to_hook == NULL || subroutine_to_jmp_to == NULL)
 	{
 		return EFI_INVALID_PARAMETER;
-	}
-
-	hook_data_t* allocated_hook_data = NULL;
-
-	EFI_STATUS status = mm_allocate_pool(&allocated_hook_data, sizeof(hook_data_t), EfiRuntimeServicesData);
-
-	if (status != EFI_SUCCESS)
-	{
-		return status;
 	}
 
 	UINT8 hook_bytes[14] = {
@@ -28,12 +19,10 @@ EFI_STATUS hook_create(hook_data_t** hook_data_out, void* subroutine_to_hook, vo
 	*(UINT32*)(&hook_bytes[1]) = parted_subroutine_to_jmp_to.u.low_part;
 	*(UINT32*)(&hook_bytes[9]) = parted_subroutine_to_jmp_to.u.high_part;
 
-	mm_copy_memory(allocated_hook_data->original_bytes, subroutine_to_hook, 14);
-	mm_copy_memory(allocated_hook_data->hook_bytes, hook_bytes, 14);
+	mm_copy_memory(hook_data_out->original_bytes, subroutine_to_hook, sizeof(hook_bytes));
+	mm_copy_memory(hook_data_out->hook_bytes, hook_bytes, sizeof(hook_bytes));
 
-	allocated_hook_data->hooked_subroutine_address = subroutine_to_hook;
-
-	*hook_data_out = allocated_hook_data;
+	hook_data_out->hooked_subroutine_address = subroutine_to_hook;
 
 	return EFI_SUCCESS;
 }
@@ -60,9 +49,4 @@ EFI_STATUS hook_disable(hook_data_t* hook_data)
 	mm_copy_memory(hook_data->hooked_subroutine_address, hook_data->original_bytes, 14);
 
 	return EFI_SUCCESS;
-}
-
-EFI_STATUS hook_delete(hook_data_t* hook_data)
-{
-	return mm_free_pool(hook_data);
 }
