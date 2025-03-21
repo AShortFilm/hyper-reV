@@ -100,6 +100,27 @@ EFI_STATUS disk_delete_file(EFI_FILE_PROTOCOL* file_handle)
     return file_handle->Delete(file_handle);
 }
 
+EFI_STATUS disk_load_file(EFI_FILE_PROTOCOL* file_handle, void** buffer, UINT64 buffer_size)
+{
+    EFI_STATUS status = mm_allocate_pool(buffer, buffer_size, EfiBootServicesData);
+
+    if (status != EFI_SUCCESS)
+    {
+        return status;
+    }
+
+    status = disk_read_file(file_handle, *buffer, buffer_size);
+
+    if (status != EFI_SUCCESS)
+    {
+        mm_free_pool(*buffer);
+
+        return status;
+    }
+
+    return EFI_SUCCESS;
+}
+
 EFI_STATUS disk_get_specified_type_file_info(void** buffer_out, UINT64* buffer_size_out, EFI_FILE_PROTOCOL* file_handle, EFI_GUID* information_type)
 {
     EFI_STATUS status = file_handle->GetInfo(file_handle, information_type, buffer_size_out, NULL);

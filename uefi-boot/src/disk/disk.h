@@ -10,6 +10,7 @@ EFI_STATUS disk_close_file(EFI_FILE_PROTOCOL* file_handle);
 EFI_STATUS disk_read_file(EFI_FILE_PROTOCOL* file_handle, void* buffer, UINT64 size);
 EFI_STATUS disk_write_file(EFI_FILE_PROTOCOL* file_handle, void* buffer, UINT64 size);
 EFI_STATUS disk_delete_file(EFI_FILE_PROTOCOL* file_handle);
+EFI_STATUS disk_load_file(EFI_FILE_PROTOCOL* file_handle, void** buffer, UINT64 buffer_size);
 EFI_STATUS disk_get_specified_type_file_info(void** buffer_out, UINT64* buffer_size_out, EFI_FILE_PROTOCOL* file_handle, EFI_GUID* information_type);
 EFI_STATUS disk_get_generic_file_info(EFI_FILE_INFO** file_info_out, UINT64* file_info_size_out, EFI_FILE_PROTOCOL* file_handle);
 EFI_STATUS disk_set_specified_type_file_info(EFI_FILE_PROTOCOL* file_handle, EFI_GUID* information_type, void* buffer, UINT64 buffer_size);

@@ -11,27 +11,6 @@
 
 hook_data_t bootmgfw_load_pe_image_hook_data = { 0 };
 
-EFI_STATUS read_original_bootmgfw_to_buffer(EFI_FILE_PROTOCOL* bootmgfw_original_file, void** buffer, UINT64 buffer_size)
-{
-    EFI_STATUS status = mm_allocate_pool(buffer, buffer_size, EfiBootServicesData);
-
-    if (status != EFI_SUCCESS)
-    {
-        return status;
-    }
-
-    status = disk_read_file(bootmgfw_original_file, *buffer, buffer_size);
-
-    if (status != EFI_SUCCESS)
-    {
-        mm_free_pool(*buffer);
-
-        return status;
-    }
-
-    return EFI_SUCCESS;
-}
-
 EFI_STATUS write_original_bootmgfw_back(EFI_FILE_INFO* original_bootmgfw_file_info, EFI_FILE_PROTOCOL* bootmgfw_file, void* buffer, UINT64 buffer_size)
 {
     EFI_STATUS status = disk_write_file(bootmgfw_file, buffer, buffer_size);
@@ -84,7 +63,7 @@ EFI_STATUS bootmgfw_restore_original_file(EFI_HANDLE* device_handle_out)
             UINT64 original_bootmgfw_buffer_size = original_bootmgfw_file_info->FileSize;
             void* original_bootmgfw_buffer = NULL;
 
-            status = read_original_bootmgfw_to_buffer(bootmgfw_original_file, &original_bootmgfw_buffer, original_bootmgfw_buffer_size);
+            status = disk_load_file(bootmgfw_original_file, &original_bootmgfw_buffer, original_bootmgfw_buffer_size);
 
             if (status == EFI_SUCCESS)
             {
