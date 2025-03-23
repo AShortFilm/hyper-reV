@@ -1,6 +1,5 @@
 #include "memory_manager.h"
 #include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiRuntimeServicesTableLib.h>
 
 #include <intrin.h>
 

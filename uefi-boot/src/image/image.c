@@ -67,3 +67,12 @@ EFI_STATUS scan_image(CHAR8** location_out, CHAR8* scan_base, UINT64 scan_max_si
 
     return EFI_NOT_FOUND;
 }
+
+EFI_IMAGE_NT_HEADERS64* image_get_nt_headers(UINT8* image_base)
+{
+    EFI_IMAGE_DOS_HEADER* dos_header = (EFI_IMAGE_DOS_HEADER*)image_base;
+
+    EFI_IMAGE_NT_HEADERS64* nt_headers = (EFI_IMAGE_NT_HEADERS64*)(image_base + dos_header->e_lfanew);
+
+    return nt_headers;
+}

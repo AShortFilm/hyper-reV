@@ -5,20 +5,52 @@
 #include "../memory_manager/memory_manager.h"
 #include "../structures/ntdef.h"
 
+#include "../hyperv_attachment/hyperv_attachment.h"
 #include "../hvloader/hvloader.h"
 
-pml4e_64* pml4_allocation = NULL;
-pdpte_64* pdpt_identity_map_allocation = NULL;
+UINT64 pml4_physical_allocation = 0;
+UINT64 pml4_virtual_allocation = 0;
+UINT64 pdpt_physical_identity_map_allocation = 0;
+UINT64 pdpt_virtual_identity_map_allocation = 0;
 
 hook_data_t winload_load_pe_image_hook_data = { 0 };
 
-CHAR8* allocate_slab_pages = NULL;
+CHAR8* bl_allocate_slab_pages = NULL;
+CHAR8* bl_mm_translate_virtual_address_ex = NULL;
 
 typedef UINT64(*bl_allocate_slab_pages_t)(UINT64* allocation_base_out, UINT64 pages_to_map, UINT64 a3, UINT64 a4);
+typedef UINT64(*bl_mm_translate_virtual_address_ex_t)(UINT64 virtual_address, UINT64* physical_address_out, UINT64 a3);
 
-UINT64 winload_allocate_slab_pages(UINT64* allocation_base_out, UINT64 pages_to_map)
+UINT64 winload_translate_virtual_address(UINT64* physical_address_out, UINT64 virtual_address)
 {
-    return ((bl_allocate_slab_pages_t)(allocate_slab_pages))(allocation_base_out, pages_to_map, 0, 0);
+    return ((bl_mm_translate_virtual_address_ex_t)(bl_mm_translate_virtual_address_ex))(virtual_address, physical_address_out, 0);
+}
+
+UINT64 winload_allocate_slab_pages_virtual(UINT64* virtual_allocation_base_out, UINT64 pages_to_map)
+{
+    if (virtual_allocation_base_out == NULL)
+    {
+        return EFI_INVALID_PARAMETER;
+    }
+
+    return ((bl_allocate_slab_pages_t)(bl_allocate_slab_pages))(virtual_allocation_base_out, pages_to_map, 0, 0);
+}
+
+UINT64 winload_allocate_slab_pages_physical(UINT64* physical_allocation_base_out, UINT64* virtual_allocation_base_out, UINT64 pages_to_map)
+{
+    if (physical_allocation_base_out == NULL)
+    {
+        return EFI_INVALID_PARAMETER;
+    }
+
+    UINT64 status = winload_allocate_slab_pages_virtual(virtual_allocation_base_out, pages_to_map);
+
+    if (status == EFI_SUCCESS)
+    {
+        winload_translate_virtual_address(physical_allocation_base_out, *virtual_allocation_base_out);
+    }
+
+    return status;
 }
 
 UINT64 winload_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64* image_base, UINT32* image_size, UINT64* a5, UINT32* a6, UINT32* a7, UINT64 a8, UINT64 a9, unknown_param_t a10, unknown_param_t a11, unknown_param_t a12, unknown_param_t a13, unknown_param_t a14, unknown_param_t a15)
@@ -31,6 +63,11 @@ UINT64 winload_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64*
 
     if (StrStr(file_info->file_name, L"hvloader") != NULL)
     {
+        winload_allocate_slab_pages_physical(&pml4_physical_allocation, &pml4_virtual_allocation, 1);
+        winload_allocate_slab_pages_physical(&pdpt_physical_identity_map_allocation, &pdpt_virtual_identity_map_allocation, 1);
+
+        hyperv_attachment_allocate_and_copy();
+
         hvloader_place_hooks(*image_base, (UINT64)*image_size);
 
         return return_value;
@@ -67,26 +104,27 @@ EFI_STATUS winload_place_load_pe_image_hook(UINT64 image_base, UINT64 image_size
 
 EFI_STATUS winload_place_hooks(UINT64 image_base, UINT64 image_size)
 {
-    EFI_STATUS status = mm_allocate_pages(&pml4_allocation, 1, EfiRuntimeServicesData);
+    UINT8* code_ref_to_allocate_slab_pages = NULL;
+
+    EFI_STATUS status = scan_image(&code_ref_to_allocate_slab_pages, (CHAR8*)image_base, image_size, "\xC1\xE9\x00\x8D\x14\x01\x48\x8B\x0D\x00\x00\x00\x00\x48\x81\xC1\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x8B\xF8\x85\xC0\x0F\x88", "xx?xxxxxx????xxx????x????xxxxxx");
 
     if (status != EFI_SUCCESS)
     {
         return status;
     }
 
-    status = mm_allocate_pages(&pdpt_identity_map_allocation, 1, EfiRuntimeServicesData);
+    bl_allocate_slab_pages = (code_ref_to_allocate_slab_pages + 25) + *(INT32*)(code_ref_to_allocate_slab_pages + 21);
+
+    UINT8* code_ref_to_translate_virt_address_ex = NULL;
+
+    status = scan_image(&code_ref_to_translate_virt_address_ex, (CHAR8*)image_base, image_size, "\xE8\x00\x00\x00\x00\x48\x8D\x83\x00\x00\x00\x00\x48\x89\x1D", "x????xxx????xxx");
 
     if (status != EFI_SUCCESS)
     {
         return status;
     }
 
-    status = scan_image(&allocate_slab_pages, (CHAR8*)image_base, image_size, "\xC1\xE9\x00\x8D\x14\x01\x48\x8B\x0D\x00\x00\x00\x00\x48\x81\xC1\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x8B\xF8\x85\xC0\x0F\x88", "xx?xxxxxx????xxx????x????xxxxxx");
-
-    if (status != EFI_SUCCESS)
-    {
-        return status;
-    }
+    bl_mm_translate_virtual_address_ex = (code_ref_to_translate_virt_address_ex + 5) + *(INT32*)(code_ref_to_translate_virt_address_ex + 1);
 
     return winload_place_load_pe_image_hook(image_base, image_size);
 }

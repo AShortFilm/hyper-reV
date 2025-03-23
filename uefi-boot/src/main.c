@@ -1,6 +1,7 @@
 #include <Library/UefiLib.h>
 
 #include "bootmgfw/bootmgfw.h"
+#include "hyperv_attachment/hyperv_attachment.h"
 
 const UINT8 _gDriverUnloadImageCount = 1;
 const UINT32 _gUefiDriverRevision = 0x200;
@@ -25,6 +26,13 @@ UefiMain(
     EFI_HANDLE device_handle = NULL;
 
     EFI_STATUS status = bootmgfw_restore_original_file(&device_handle);
+
+    if (status != EFI_SUCCESS)
+    {
+        return status;
+    }
+
+    status = hyperv_attachment_load_and_delete_from_disk(&hyperv_attachment_file_buffer);
 
     if (status != EFI_SUCCESS)
     {

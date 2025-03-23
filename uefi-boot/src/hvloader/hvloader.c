@@ -3,26 +3,15 @@
 #include "../image/image.h"
 #include "../structures/virtual_address.h"
 #include "../memory_manager/memory_manager.h"
+#include "../hyperv_attachment/hyperv_attachment.h"
 #include "../winload/winload.h"
 
 #include <IndustryStandard/PeImage.h>
-
-CHAR8* code_ref_to_vmexit_handler = NULL;
-CHAR8* original_vmexit_handler = NULL;
-INT32 original_vmexit_handler_rva = 0;
 
 hook_data_t hvloader_launch_hv_hook_data = { 0 };
 hook_data_t hv_vmexit_hook_data = { 0 };
 
 typedef void(*hvloader_launch_hv_t)(cr3 a1, virtual_address_t a2, UINT64 a3, UINT64 a4);
-typedef UINT64(*vmexit_handler_t)(UINT64 a1, UINT64 a2, UINT64 a3, UINT64 a4);
-
-UINT64 vmexit_detour(UINT64 a1, UINT64 a2, UINT64 a3, UINT64 a4)
-{
-    mm_copy_memory(code_ref_to_vmexit_handler + 1, (UINT8*)&original_vmexit_handler_rva, sizeof(original_vmexit_handler_rva));
-
-    return ((vmexit_handler_t)original_vmexit_handler)(a1, a2, a3, a4);
-}
 
 UINT64 get_hyperv_base(virtual_address_t entry_point)
 {
@@ -43,10 +32,10 @@ UINT64 get_hyperv_base(virtual_address_t entry_point)
 
 void set_up_identity_map(pml4e_64* pml4e)
 {
-    pdpte_64* pdpt = pdpt_identity_map_allocation;
+    pdpte_64* pdpt = (pdpte_64*)pdpt_virtual_identity_map_allocation;
 
     pml4e->flags = 0;
-    pml4e->page_frame_number = (UINT64)pdpt >> 12;
+    pml4e->page_frame_number = (UINT64)pdpt_physical_identity_map_allocation >> 12;
     pml4e->present = 1;
     pml4e->write = 1;
 
@@ -79,34 +68,47 @@ void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
 
     if (hyperv_base != 0)
     {
-        EFI_IMAGE_DOS_HEADER* dos_header = (EFI_IMAGE_DOS_HEADER*)hyperv_base;
+        UINT8* hyperv_attachment_entry_point = NULL;
 
-        EFI_IMAGE_NT_HEADERS64* nt_headers = (EFI_IMAGE_NT_HEADERS64*)(hyperv_base + dos_header->e_lfanew);
-
-        UINT64 size_of_image = (UINT64)nt_headers->OptionalHeader.SizeOfImage;
-
-        EFI_STATUS status = scan_image(&code_ref_to_vmexit_handler, (CHAR8*)hyperv_base, size_of_image, "\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x74", "x????x????x");
+        EFI_STATUS status = hyperv_attachment_get_relocated_entry_point(&hyperv_attachment_entry_point);
 
         if (status == EFI_SUCCESS)
         {
-            CHAR8* code_cave = NULL;
+            EFI_IMAGE_DOS_HEADER* dos_header = (EFI_IMAGE_DOS_HEADER*)hyperv_base;
 
-            status = scan_image(&code_cave, (CHAR8*)hyperv_base, size_of_image, "\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC", "xxxxxxxxxxxxxxxx");
+            EFI_IMAGE_NT_HEADERS64* nt_headers = (EFI_IMAGE_NT_HEADERS64*)(hyperv_base + dos_header->e_lfanew);
+
+            UINT64 size_of_image = (UINT64)nt_headers->OptionalHeader.SizeOfImage;
+
+            CHAR8* code_ref_to_vmexit_handler = NULL;
+
+            status = scan_image(&code_ref_to_vmexit_handler, (CHAR8*)hyperv_base, size_of_image, "\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x74", "x????x????x");
 
             if (status == EFI_SUCCESS)
             {
-                status = hook_create(&hv_vmexit_hook_data, code_cave, (void*)vmexit_detour);
+                INT32 original_vmexit_handler_rva = *(INT32*)(code_ref_to_vmexit_handler + 1);
+                CHAR8* original_vmexit_handler = (code_ref_to_vmexit_handler + 5) + original_vmexit_handler_rva;
+
+                UINT8* hyperv_attachment_vmexit_handler_detour = NULL;
+
+                hyperv_attachment_invoke_entry_point(&hyperv_attachment_vmexit_handler_detour, hyperv_attachment_entry_point, original_vmexit_handler);
+
+                CHAR8* code_cave = NULL;
+
+                status = scan_image(&code_cave, (CHAR8*)hyperv_base, size_of_image, "\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC", "xxxxxxxxxxxxxxxx");
 
                 if (status == EFI_SUCCESS)
                 {
-                    hook_enable(&hv_vmexit_hook_data);
+                    status = hook_create(&hv_vmexit_hook_data, code_cave, hyperv_attachment_vmexit_handler_detour);
 
-                    original_vmexit_handler_rva = *(INT32*)(code_ref_to_vmexit_handler + 1);
-                    original_vmexit_handler = (code_ref_to_vmexit_handler + 5) + original_vmexit_handler_rva;
+                    if (status == EFI_SUCCESS)
+                    {
+                        hook_enable(&hv_vmexit_hook_data);
 
-                    UINT32 new_call_rva = (UINT32)(code_cave - (code_ref_to_vmexit_handler + 5));
+                        UINT32 new_call_rva = (UINT32)(code_cave - (code_ref_to_vmexit_handler + 5));
 
-                    mm_copy_memory(code_ref_to_vmexit_handler + 1, (UINT8*)&new_call_rva, sizeof(new_call_rva));
+                        mm_copy_memory(code_ref_to_vmexit_handler + 1, (UINT8*)&new_call_rva, sizeof(new_call_rva));
+                    }
                 }
             }
         }
@@ -117,15 +119,15 @@ void hvloader_launch_hv_detour(cr3 hyperv_cr3, virtual_address_t hyperv_entry_po
 {
     hook_disable(&hvloader_launch_hv_hook_data);
 
-    pml4e_64* pml4 = pml4_allocation;
+    pml4e_64* virtual_pml4 = (pml4e_64*)pml4_virtual_allocation;
 
-    set_up_identity_map(&pml4[0]);
+    set_up_identity_map(&virtual_pml4[0]);
 
     UINT64 original_cr3 = AsmReadCr3();
 
-    cr3 identity_map_cr3 = { .address_of_page_directory = (UINT64)pml4 >> 12 };
+    cr3 identity_map_cr3 = { .address_of_page_directory = pml4_physical_allocation >> 12 };
 
-    load_identity_map_into_hyperv_cr3(identity_map_cr3, hyperv_cr3, pml4[0]);
+    load_identity_map_into_hyperv_cr3(identity_map_cr3, hyperv_cr3, virtual_pml4[0]);
 
     set_up_hyperv_hooks(hyperv_cr3, hyperv_entry_point);
 
