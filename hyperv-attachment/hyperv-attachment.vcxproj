@@ -125,6 +125,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <LanguageStandard>Default</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,10 +161,15 @@
   <ItemGroup>
     <ClCompile Include="src\arch\arch.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\memory_manager\memory_manager.cpp" />
+    <ClCompile Include="src\slat\slat.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ext\ia32-doc\ia32.hpp" />
     <ClInclude Include="src\arch\arch.h" />
+    <ClInclude Include="src\memory_manager\memory_manager.h" />
+    <ClInclude Include="src\slat\slat.h" />
+    <ClInclude Include="src\structures\virtual_address.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

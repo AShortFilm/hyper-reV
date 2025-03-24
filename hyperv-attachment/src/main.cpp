@@ -1,4 +1,5 @@
 #include "arch/arch.h"
+#include "slat/slat.h"
 #include <ia32-doc/ia32.hpp>
 #include <intrin.h>
 #include <cstdint>
@@ -9,6 +10,7 @@ struct trap_frame_t
 {
     std::uint64_t rax;
     std::uint64_t rcx;
+    std::uint64_t rdx;
 };
 
 typedef std::uint64_t(*vmexit_handler_t)(trap_frame_t** a1, std::uint64_t a2, std::uint64_t a3, std::uint64_t a4);
@@ -21,7 +23,11 @@ std::uint64_t vmexit_handler_detour(trap_frame_t** a1, std::uint64_t a2, std::ui
 
     if (arch::is_cpuid(exit_reason) == 1 && trap_frame->rcx == 1337)
     {
-        trap_frame->rax = 1337;
+        virtual_address_t guest_physical_address = { 0 };
+
+        guest_physical_address.address = trap_frame->rdx;
+
+        trap_frame->rax = slat::translate_guest_physical_address(slat::get_cr3(), guest_physical_address);
 
         arch::advance_rip();
 

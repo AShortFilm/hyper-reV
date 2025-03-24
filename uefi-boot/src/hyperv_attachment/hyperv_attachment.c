@@ -59,7 +59,9 @@ EFI_STATUS hyperv_attachment_remap_image(UINT8** hyperv_attachment_virtual_base_
         return EFI_INVALID_PARAMETER;
     }
 
-    *hyperv_attachment_virtual_base_out = hyperv_attachment_physical_base;
+    const UINT64 physical_memory_access_base = 255ull << 39;
+
+    *hyperv_attachment_virtual_base_out = physical_memory_access_base + hyperv_attachment_physical_base;
 
     return EFI_SUCCESS;
 }

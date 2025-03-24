@@ -21,12 +21,27 @@
     <ClCompile Include="src\arch\arch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\slat\slat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\memory_manager\memory_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ext\ia32-doc\ia32.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\arch\arch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\slat\slat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\structures\virtual_address.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\memory_manager\memory_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

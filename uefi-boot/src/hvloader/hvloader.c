@@ -32,7 +32,7 @@ UINT64 get_hyperv_base(virtual_address_t entry_point)
 
 void set_up_identity_map(pml4e_64* pml4e)
 {
-    pdpte_64* pdpt = (pdpte_64*)pdpt_virtual_identity_map_allocation;
+    pdpte_1gb_64* pdpt = (pdpte_1gb_64*)pdpt_virtual_identity_map_allocation;
 
     pml4e->flags = 0;
     pml4e->page_frame_number = (UINT64)pdpt_physical_identity_map_allocation >> 12;
@@ -41,7 +41,7 @@ void set_up_identity_map(pml4e_64* pml4e)
 
     for (UINT64 i = 0; i < 512; i++)
     {
-        pdpte_64* pdpte = &pdpt[i];
+        pdpte_1gb_64* pdpte = &pdpt[i];
 
         pdpte->flags = 0;
         pdpte->page_frame_number = i;
@@ -51,13 +51,25 @@ void set_up_identity_map(pml4e_64* pml4e)
     }
 }
 
-void load_identity_map_into_hyperv_cr3(cr3 identity_map_cr3, cr3 hyperv_cr3, pml4e_64 identity_map_pml4e)
+void load_identity_map_into_hyperv_cr3(cr3 identity_map_cr3, cr3 hyperv_cr3, pml4e_64 identity_map_pml4e, pml4e_64* initial_hyperv_pml4e)
 {
     AsmWriteCr3(identity_map_cr3.flags);
 
     pml4e_64* hyperv_pml4 = (pml4e_64*)(hyperv_cr3.address_of_page_directory << 12);
 
+    *initial_hyperv_pml4e = hyperv_pml4[0];
+
     hyperv_pml4[0] = identity_map_pml4e;
+    hyperv_pml4[255] = identity_map_pml4e;
+}
+
+void restore_initial_hyperv_pml4e(cr3 identity_map_cr3, cr3 hyperv_cr3, pml4e_64 initial_hyperv_pml4e)
+{
+    AsmWriteCr3(identity_map_cr3.flags);
+
+    pml4e_64* hyperv_pml4 = (pml4e_64*)(hyperv_cr3.address_of_page_directory << 12);
+
+    hyperv_pml4[0] = initial_hyperv_pml4e;
 }
 
 void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
@@ -127,9 +139,13 @@ void hvloader_launch_hv_detour(cr3 hyperv_cr3, virtual_address_t hyperv_entry_po
 
     cr3 identity_map_cr3 = { .address_of_page_directory = pml4_physical_allocation >> 12 };
 
-    load_identity_map_into_hyperv_cr3(identity_map_cr3, hyperv_cr3, virtual_pml4[0]);
+    pml4e_64 initial_hyperv_pml4e = { 0 };
+
+    load_identity_map_into_hyperv_cr3(identity_map_cr3, hyperv_cr3, virtual_pml4[0], &initial_hyperv_pml4e);
 
     set_up_hyperv_hooks(hyperv_cr3, hyperv_entry_point);
+
+    restore_initial_hyperv_pml4e(identity_map_cr3, hyperv_cr3, initial_hyperv_pml4e);
 
     AsmWriteCr3(original_cr3);
 
