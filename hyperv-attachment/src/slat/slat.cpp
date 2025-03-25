@@ -34,7 +34,10 @@ std::uint64_t slat::translate_guest_physical_address(cr3 slat_cr3, virtual_addre
 	ept_pdpte* ept_pdpt = reinterpret_cast<ept_pdpte*>(memory_manager::map_host_physical(pml4e.page_frame_number << 12));
 
 	ept_pdpte pdpte = ept_pdpt[guest_physical_address.pdpt_idx];
-	ept_pdpte_1gb large_pdpte = { pdpte.flags };
+
+	ept_pdpte_1gb large_pdpte = { 0 };
+
+	large_pdpte.flags = pdpte.flags;
 
 	if (large_pdpte.large_page == 1)
 	{
@@ -46,7 +49,10 @@ std::uint64_t slat::translate_guest_physical_address(cr3 slat_cr3, virtual_addre
 	ept_pde* ept_pd = reinterpret_cast<ept_pde*>(memory_manager::map_host_physical(pdpte.page_frame_number << 12));
 
 	ept_pde pde = ept_pd[guest_physical_address.pd_idx];
-	ept_pde_2mb large_pde = { pde.flags };
+
+	ept_pde_2mb large_pde = { 0 };
+
+	large_pde.flags = pde.flags;
 
 	if (large_pde.large_page == 1)
 	{

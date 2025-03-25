@@ -27,6 +27,19 @@ std::uint8_t arch::is_cpuid(std::uint64_t vmexit_reason)
 #endif
 }
 
+cr3 arch::get_guest_cr3()
+{
+	cr3 guest_cr3 = { };
+
+#ifdef _INTELMACHINE
+	__vmx_vmread(VMCS_GUEST_CR3, (std::uint64_t*)&guest_cr3);
+#else
+
+#endif
+
+	return guest_cr3;
+}
+
 void arch::advance_rip()
 {
 #ifdef _INTELMACHINE
