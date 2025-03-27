@@ -10,4 +10,13 @@ namespace crt
 	{
 		return (a < b) ? a : b;
 	}
+
+	template <class t>
+	void swap(t& a, t& b)
+	{
+		t cache = a;
+
+		a = b;
+		b = cache;
+	}
 }

@@ -4,7 +4,13 @@
 enum class hypercall_type_t : std::uint64_t
 {
     null,
-    read_guest_physical_memory
+    guest_physical_memory_operation
+};
+
+enum class physical_memory_operation_t : std::uint64_t
+{
+    read_operation,
+    write_operation
 };
 
 #pragma warning(push)
