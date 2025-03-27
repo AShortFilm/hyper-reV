@@ -74,12 +74,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)\build\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(Platform)\$(Configuration)\obj\$(TargetName)\</IntDir>
-    <IncludePath>$(ProjectDir)ext;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)shared;$(ProjectDir)ext;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)\build\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(Platform)\$(Configuration)\obj\$(TargetName)\</IntDir>
-    <IncludePath>$(ProjectDir)ext;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)shared;$(ProjectDir)ext;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -125,7 +125,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -147,6 +147,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,6 +161,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\arch\arch.cpp" />
+    <ClCompile Include="src\crt\crt.cpp" />
+    <ClCompile Include="src\hypercall\hypercall.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\memory_manager\memory_manager.cpp" />
     <ClCompile Include="src\slat\slat.cpp" />
@@ -167,8 +170,11 @@
   <ItemGroup>
     <ClInclude Include="ext\ia32-doc\ia32.hpp" />
     <ClInclude Include="src\arch\arch.h" />
+    <ClInclude Include="src\crt\crt.h" />
+    <ClInclude Include="src\hypercall\hypercall.h" />
     <ClInclude Include="src\memory_manager\memory_manager.h" />
     <ClInclude Include="src\slat\slat.h" />
+    <ClInclude Include="src\structures\trap_frame.h" />
     <ClInclude Include="src\structures\virtual_address.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

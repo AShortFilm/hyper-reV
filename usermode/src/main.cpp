@@ -1,18 +1,27 @@
 #include <iostream>
 #include <print>
 
-extern "C" std::uint64_t do_hv_call(std::uint64_t rcx, std::uint64_t rdx);
+#include <hypercall/hypercall_def.h>
+
+extern "C" std::uint64_t do_hv_call(hypercall_info_t rcx, std::uint64_t rdx, void* r8, std::uint64_t r9);
 
 std::int32_t main()
 {
 	std::uint64_t guest_physical_address = 0;
 
-	std::print("enter guest virtual address to translate: ");
+	std::print("enter guest physical address to read qword from: ");
 	std::cin >> std::hex >> guest_physical_address;
 
-	std::uint64_t hv_call_response = do_hv_call(1337, guest_physical_address);
+	hypercall_info_t hypercall_info = { };
 
-	std::println("guest virtual address 0x{:x} translates to guest physical address 0x{:x}", guest_physical_address, hv_call_response);
+	hypercall_info.key = 0x4E47;
+	hypercall_info.call_type = hypercall_type_t::read_guest_physical_memory;
+
+	std::uint64_t read_buffer = 0;
+
+	std::uint64_t hv_call_response = do_hv_call(hypercall_info, guest_physical_address, &read_buffer, sizeof(read_buffer));
+
+	std::println("hv call response: 0x{:x}, read value: 0x{:x}", hv_call_response, read_buffer);
 
 	std::system("pause");
 
