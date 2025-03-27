@@ -140,10 +140,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\hypercall\hypercall.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="src\vmexit.asm" />
+    <MASM Include="src\hypercall\vmexit.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\hypercall\hypercall.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
