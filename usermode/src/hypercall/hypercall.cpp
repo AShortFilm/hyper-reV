@@ -14,26 +14,56 @@ std::uint64_t make_hypercall(hypercall_type_t call_type, std::uint64_t call_rese
 	return launch_raw_hypercall(hypercall_info, rdx, r8, r9);
 }
 
-std::uint64_t hypercall::read_guest_physical_memory(void* guest_virtual_buffer, std::uint64_t guest_physical_address, std::uint64_t size)
+std::uint64_t hypercall::read_guest_physical_memory(void* guest_destination_buffer, std::uint64_t guest_source_physical_address, std::uint64_t size)
 {
 	hypercall_type_t call_type = hypercall_type_t::guest_physical_memory_operation;
 
-	std::uint64_t call_data = static_cast<std::uint64_t>(physical_memory_operation_t::read_operation);
+	std::uint64_t call_data = static_cast<std::uint64_t>(memory_operation_t::read_operation);
 
-	std::uint64_t read_buffer = reinterpret_cast<std::uint64_t>(guest_virtual_buffer);
+	std::uint64_t guest_destination_virtual_address = reinterpret_cast<std::uint64_t>(guest_destination_buffer);
 
-	return make_hypercall(call_type, call_data, guest_physical_address, read_buffer, size);
+	return make_hypercall(call_type, call_data, guest_source_physical_address, guest_destination_virtual_address, size);
 }
 
-std::uint64_t hypercall::write_guest_physical_memory(void* guest_virtual_buffer, std::uint64_t guest_physical_address, std::uint64_t size)
+std::uint64_t hypercall::write_guest_physical_memory(void* guest_source_buffer, std::uint64_t guest_destination_physical_address, std::uint64_t size)
 {
 	hypercall_type_t call_type = hypercall_type_t::guest_physical_memory_operation;
 
-	std::uint64_t call_data = static_cast<std::uint64_t>(physical_memory_operation_t::write_operation);
+	std::uint64_t call_data = static_cast<std::uint64_t>(memory_operation_t::write_operation);
 
-	std::uint64_t write_buffer = reinterpret_cast<std::uint64_t>(guest_virtual_buffer);
+	std::uint64_t guest_source_virtual_address = reinterpret_cast<std::uint64_t>(guest_source_buffer);
 
-	return make_hypercall(call_type, call_data, guest_physical_address, write_buffer, size);
+	return make_hypercall(call_type, call_data, guest_destination_physical_address, guest_source_virtual_address, size);
+}
+
+std::uint64_t hypercall::read_guest_virtual_memory(void* guest_destination_buffer, std::uint64_t guest_source_virtual_address, std::uint64_t source_cr3, std::uint64_t size)
+{
+	virt_memory_op_hypercall_info_t memory_op_call = { };
+
+	memory_op_call.call_type = hypercall_type_t::guest_virtual_memory_operation;
+	memory_op_call.memory_operation = memory_operation_t::read_operation;
+	memory_op_call.address_of_page_directory = source_cr3 >> 12;
+
+	hypercall_info_t hypercall_info = { .value = memory_op_call.value };
+
+	std::uint64_t guest_destination_virtual_address = reinterpret_cast<std::uint64_t>(guest_destination_buffer);
+
+	return make_hypercall(hypercall_info.call_type, hypercall_info.call_reserved_data, guest_destination_virtual_address, guest_source_virtual_address, size);
+}
+
+std::uint64_t hypercall::write_guest_virtual_memory(void* guest_source_buffer, std::uint64_t guest_destination_virtual_address, std::uint64_t destination_cr3, std::uint64_t size)
+{
+	virt_memory_op_hypercall_info_t memory_op_call = { };
+
+	memory_op_call.call_type = hypercall_type_t::guest_virtual_memory_operation;
+	memory_op_call.memory_operation = memory_operation_t::write_operation;
+	memory_op_call.address_of_page_directory = destination_cr3 >> 12;
+
+	hypercall_info_t hypercall_info = { .value = memory_op_call.value };
+
+	std::uint64_t guest_source_virtual_address = reinterpret_cast<std::uint64_t>(guest_source_buffer);
+
+	return make_hypercall(hypercall_info.call_type, hypercall_info.call_reserved_data, guest_source_virtual_address, guest_destination_virtual_address, size);
 }
 
 std::uint64_t hypercall::translate_guest_virtual_address(std::uint64_t guest_virtual_address, std::uint64_t guest_cr3)

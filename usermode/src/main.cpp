@@ -6,10 +6,13 @@
 
 std::int32_t main()
 {
-	std::uint64_t guest_physical_address = 0;
+	// 24h2's kernel cr3
+	constexpr std::uint64_t kernel_cr3 = 0x1ae000;
 
-	std::print("enter guest physical address to operate on qword from (hexadecimal): ");
-	std::cin >> std::hex >> guest_physical_address;
+	std::uint64_t guest_virtual_address = 0;
+
+	std::print("enter guest kernel virtual address to operate on qword from (hexadecimal): ");
+	std::cin >> std::hex >> guest_virtual_address;
 
 	std::int8_t target_operation = 0;
 
@@ -20,7 +23,7 @@ std::int32_t main()
 	{
 		std::uint64_t read_buffer = 0;
 
-		std::uint64_t hypercall_response = hypercall::read_guest_physical_memory(&read_buffer, guest_physical_address, sizeof(read_buffer));
+		std::uint64_t hypercall_response = hypercall::read_guest_virtual_memory(&read_buffer, guest_virtual_address, kernel_cr3, sizeof(read_buffer));
 
 		std::println("hypercall response: 0x{:x}, read value: 0x{:x}", hypercall_response, read_buffer);
 	}
@@ -31,7 +34,7 @@ std::int32_t main()
 		std::print("enter value to write to the address (hexadecimal): ");
 		std::cin >> std::hex >> write_buffer;
 
-		std::uint64_t hypercall_response = hypercall::write_guest_physical_memory(&write_buffer, guest_physical_address, sizeof(write_buffer));
+		std::uint64_t hypercall_response = hypercall::write_guest_virtual_memory(&write_buffer, guest_virtual_address, kernel_cr3, sizeof(write_buffer));
 
 		std::println("hypercall response: 0x{:x}", hypercall_response);
 	}
