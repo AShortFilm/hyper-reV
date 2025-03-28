@@ -59,6 +59,17 @@ void hypercall::process(trap_frame_t* trap_frame)
 
         break;
     }
+    case hypercall_type_t::translate_guest_virtual_address:
+    {
+        virtual_address_t guest_virtual_address = { .address = trap_frame->rdx };
+
+        cr3 target_guest_cr3 = { .flags = trap_frame->r8 };
+        cr3 slat_cr3 = slat::get_cr3();
+
+        trap_frame->rax = memory_manager::translate_guest_virtual_address(target_guest_cr3, slat_cr3, guest_virtual_address);
+
+        break;
+    }
     case hypercall_type_t::null:
     default:
         break;

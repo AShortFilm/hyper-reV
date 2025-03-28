@@ -4,7 +4,8 @@
 enum class hypercall_type_t : std::uint64_t
 {
     null,
-    guest_physical_memory_operation
+    guest_physical_memory_operation,
+    translate_guest_virtual_address
 };
 
 enum class physical_memory_operation_t : std::uint64_t

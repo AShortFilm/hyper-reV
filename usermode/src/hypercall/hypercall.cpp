@@ -35,3 +35,10 @@ std::uint64_t hypercall::write_guest_physical_memory(void* guest_virtual_buffer,
 
 	return make_hypercall(call_type, call_data, guest_physical_address, write_buffer, size);
 }
+
+std::uint64_t hypercall::translate_guest_virtual_address(std::uint64_t guest_virtual_address, std::uint64_t guest_cr3)
+{
+	hypercall_type_t call_type = hypercall_type_t::translate_guest_virtual_address;
+
+	return make_hypercall(call_type, 0, guest_virtual_address, guest_cr3, 0);
+}
