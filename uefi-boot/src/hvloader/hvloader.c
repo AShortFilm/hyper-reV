@@ -103,7 +103,10 @@ void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
 
                 UINT8* hyperv_attachment_vmexit_handler_detour = NULL;
 
-                hyperv_attachment_invoke_entry_point(&hyperv_attachment_vmexit_handler_detour, hyperv_attachment_entry_point, original_vmexit_handler);
+                UINT64 heap_physical_base = hyperv_attachment_heap_physical_allocation;
+                UINT64 heap_size = hyperv_attachment_heap_4kb_pages_needed * 0x1000;
+
+                hyperv_attachment_invoke_entry_point(&hyperv_attachment_vmexit_handler_detour, hyperv_attachment_entry_point, original_vmexit_handler, heap_physical_base, heap_size);
 
                 CHAR8* code_cave = NULL;
 

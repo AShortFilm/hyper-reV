@@ -8,6 +8,9 @@
 UINT8* hyperv_attachment_file_buffer = NULL;
 UINT8* hyperv_attachment_physical_base = NULL;
 
+UINT64 hyperv_attachment_heap_physical_allocation = 0;
+UINT32 hyperv_attachment_heap_4kb_pages_needed = 256;
+
 #define d_hyperv_attachment_path L"\\efi\\microsoft\\boot\\hyperv-attachment.dll"
 
 UINT64 get_pages_needed_for_hyperv_attachment(EFI_IMAGE_NT_HEADERS64* nt_headers)
@@ -133,11 +136,11 @@ EFI_STATUS hyperv_attachment_get_relocated_entry_point(UINT8** hyperv_attachment
     return hyperv_attachment_get_entry_point(hyperv_attachment_entry_point, hyperv_attachment_virtual_base);
 }
 
-typedef void(*hyperv_attachment_entry_point_t)(UINT8** vmexit_handler_detour_out, UINT8* original_vmexit_handler_routine);
+typedef void(*hyperv_attachment_entry_point_t)(UINT8** vmexit_handler_detour_out, UINT8* original_vmexit_handler_routine, UINT64 heap_physical_base, UINT64 heap_size);
 
-void hyperv_attachment_invoke_entry_point(UINT8** hyperv_attachment_vmexit_handler_detour_out, UINT8* hyperv_attachment_entry_point, CHAR8* original_vmexit_handler)
+void hyperv_attachment_invoke_entry_point(UINT8** hyperv_attachment_vmexit_handler_detour_out, UINT8* hyperv_attachment_entry_point, CHAR8* original_vmexit_handler, UINT64 heap_physical_base, UINT64 heap_size)
 {
-    ((hyperv_attachment_entry_point_t)(hyperv_attachment_entry_point))(hyperv_attachment_vmexit_handler_detour_out, original_vmexit_handler);
+    ((hyperv_attachment_entry_point_t)(hyperv_attachment_entry_point))(hyperv_attachment_vmexit_handler_detour_out, original_vmexit_handler, heap_physical_base, heap_size);
 }
 
 EFI_STATUS hyperv_attachment_load_and_delete_from_disk(UINT8** file_buffer_out)

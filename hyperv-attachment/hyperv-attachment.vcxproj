@@ -164,6 +164,7 @@
     <ClCompile Include="src\crt\crt.cpp" />
     <ClCompile Include="src\hypercall\hypercall.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\memory_manager\heap_manager.cpp" />
     <ClCompile Include="src\memory_manager\memory_manager.cpp" />
     <ClCompile Include="src\slat\slat.cpp" />
   </ItemGroup>
@@ -172,6 +173,7 @@
     <ClInclude Include="src\arch\arch.h" />
     <ClInclude Include="src\crt\crt.h" />
     <ClInclude Include="src\hypercall\hypercall.h" />
+    <ClInclude Include="src\memory_manager\heap_manager.h" />
     <ClInclude Include="src\memory_manager\memory_manager.h" />
     <ClInclude Include="src\slat\slat.h" />
     <ClInclude Include="src\structures\trap_frame.h" />

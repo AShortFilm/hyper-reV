@@ -19,4 +19,16 @@ namespace crt
 		a = b;
 		b = cache;
 	}
+
+	class mutex_t
+	{
+	private:
+		std::int64_t value;
+
+	public:
+		mutex_t();
+		
+		void lock();
+		void release();
+	};
 }

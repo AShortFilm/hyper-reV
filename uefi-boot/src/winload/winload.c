@@ -66,6 +66,10 @@ UINT64 winload_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64*
         winload_allocate_slab_pages_physical(&pml4_physical_allocation, &pml4_virtual_allocation, 1);
         winload_allocate_slab_pages_physical(&pdpt_physical_identity_map_allocation, &pdpt_virtual_identity_map_allocation, 1);
 
+        UINT64 heap_allocation_virtual = 0;
+
+        winload_allocate_slab_pages_physical(&hyperv_attachment_heap_physical_allocation, &heap_allocation_virtual, hyperv_attachment_heap_4kb_pages_needed);
+
         hyperv_attachment_allocate_and_copy();
 
         hvloader_place_hooks(*image_base, (UINT64)*image_size);
