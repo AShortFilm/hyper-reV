@@ -8,6 +8,11 @@ std::uint64_t memory_manager::map_host_physical(std::uint64_t host_physical_addr
 	return host_physical_memory_access_base + host_physical_address;
 }
 
+std::uint64_t memory_manager::unmap_host_physical(std::uint64_t host_mapped_address)
+{
+	return host_mapped_address - host_physical_memory_access_base;
+}
+
 std::uint64_t memory_manager::map_guest_physical(cr3 slat_cr3, std::uint64_t guest_physical_address, std::uint64_t* size_left_of_ept_page)
 {
 	virtual_address_t guest_physical_address_to_map = { .address = guest_physical_address };
@@ -28,7 +33,7 @@ std::uint64_t memory_manager::translate_guest_virtual_address(cr3 guest_cr3, cr3
 		return 0;
 	}
 
-	pdpte_64* pdpt = reinterpret_cast<pdpte_64*>(memory_manager::map_guest_physical(slat_cr3, pml4e.page_frame_number << 12));
+	pdpte_64* pdpt = reinterpret_cast<pdpte_64*>(map_guest_physical(slat_cr3, pml4e.page_frame_number << 12));
 
 	pdpte_64 pdpte = pdpt[guest_virtual_address.pdpt_idx];
 
@@ -51,7 +56,7 @@ std::uint64_t memory_manager::translate_guest_virtual_address(cr3 guest_cr3, cr3
 		return (large_pdpte.page_frame_number << 30) + page_offset;
 	}
 
-	pde_64* pd = reinterpret_cast<pde_64*>(memory_manager::map_guest_physical(slat_cr3, pdpte.page_frame_number << 12));
+	pde_64* pd = reinterpret_cast<pde_64*>(map_guest_physical(slat_cr3, pdpte.page_frame_number << 12));
 
 	pde_64 pde = pd[guest_virtual_address.pd_idx];
 
@@ -74,7 +79,7 @@ std::uint64_t memory_manager::translate_guest_virtual_address(cr3 guest_cr3, cr3
 		return (large_pde.page_frame_number << 21) + page_offset;
 	}
 
-	pte_64* pt = reinterpret_cast<pte_64*>(memory_manager::map_guest_physical(slat_cr3, pde.page_frame_number << 12));
+	pte_64* pt = reinterpret_cast<pte_64*>(map_guest_physical(slat_cr3, pde.page_frame_number << 12));
 
 	pte_64 pte = pt[guest_virtual_address.pt_idx];
 

@@ -72,3 +72,17 @@ std::uint64_t hypercall::translate_guest_virtual_address(std::uint64_t guest_vir
 
 	return make_hypercall(call_type, 0, guest_virtual_address, guest_cr3, 0);
 }
+
+std::uint64_t hypercall::read_guest_cr3()
+{
+	hypercall_type_t call_type = hypercall_type_t::read_guest_cr3;
+
+	return make_hypercall(call_type, 0, 0, 0, 0);
+}
+
+std::uint64_t hypercall::add_slat_code_hook(std::uint64_t target_guest_physical_address, std::uint64_t shadow_page_guest_physical_address)
+{
+	hypercall_type_t call_type = hypercall_type_t::add_slat_code_hook;
+
+	return make_hypercall(call_type, 0, target_guest_physical_address, shadow_page_guest_physical_address, 0);
+}

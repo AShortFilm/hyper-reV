@@ -9,7 +9,7 @@ UINT8* hyperv_attachment_file_buffer = NULL;
 UINT8* hyperv_attachment_physical_base = NULL;
 
 UINT64 hyperv_attachment_heap_physical_allocation = 0;
-UINT32 hyperv_attachment_heap_4kb_pages_needed = 256;
+UINT32 hyperv_attachment_heap_4kb_pages_needed = 64;
 
 #define d_hyperv_attachment_path L"\\efi\\microsoft\\boot\\hyperv-attachment.dll"
 

@@ -27,6 +27,15 @@ std::uint8_t arch::is_cpuid(std::uint64_t vmexit_reason)
 #endif
 }
 
+std::uint8_t arch::is_slat_violation(std::uint64_t vmexit_reason)
+{
+#ifdef _INTELMACHINE
+	return vmexit_reason == VMX_EXIT_REASON_EPT_VIOLATION;
+#else
+	return 0;
+#endif
+}
+
 cr3 arch::get_guest_cr3()
 {
 	cr3 guest_cr3 = { };

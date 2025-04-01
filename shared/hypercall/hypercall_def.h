@@ -6,7 +6,10 @@ enum class hypercall_type_t : std::uint64_t
     null,
     guest_physical_memory_operation,
     guest_virtual_memory_operation,
-    translate_guest_virtual_address
+    translate_guest_virtual_address,
+    read_guest_cr3,
+    add_slat_code_hook,
+    remove_slat_code_hook
 };
 
 enum class memory_operation_t : std::uint64_t

@@ -123,6 +123,25 @@ void hypercall::process(trap_frame_t* trap_frame)
 
         break;
     }
+    case hypercall_type_t::read_guest_cr3:
+    {
+        cr3 guest_cr3 = arch::get_guest_cr3();
+
+        trap_frame->rax = guest_cr3.flags;
+
+        break;
+    }
+    case hypercall_type_t::add_slat_code_hook:
+    {
+        virtual_address_t target_guest_physical_address = { .address = trap_frame->rdx };
+        virtual_address_t shadow_page_guest_physical_address = { .address = trap_frame->r8 };
+
+        cr3 slat_cr3 = slat::get_cr3();
+
+        trap_frame->rax = slat::add_slat_code_hook(slat_cr3, target_guest_physical_address, shadow_page_guest_physical_address);
+
+        break;
+    }
     case hypercall_type_t::null:
     default:
         break;
