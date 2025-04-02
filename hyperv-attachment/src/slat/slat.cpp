@@ -6,6 +6,8 @@
 #include <cstdint>
 
 #ifdef _INTELMACHINE
+extern "C" void invalidate_ept_mappings(invept_type type, invept_descriptor descriptor);
+
 #include <intrin.h>
 #endif
 
@@ -55,6 +57,7 @@ cr3 slat::get_cr3()
 	return slat_cr3;
 }
 
+#ifdef _INTELMACHINE
 ept_pml4e* slat_get_pml4e(cr3 slat_cr3, virtual_address_t guest_physical_address)
 {
 	ept_pml4e* ept_pml4 = reinterpret_cast<ept_pml4e*>(memory_manager::map_host_physical(slat_cr3.address_of_page_directory << 12));
@@ -90,6 +93,8 @@ ept_pte* slat_get_pte(ept_pde* pde, virtual_address_t guest_physical_address)
 
 	return pte;
 }
+#else
+#endif
 
 std::uint64_t slat::translate_guest_physical_address(cr3 slat_cr3, virtual_address_t guest_physical_address, std::uint64_t* size_left_of_slat_page)
 {
@@ -265,6 +270,8 @@ std::uint64_t slat::add_slat_code_hook(cr3 slat_cr3, virtual_address_t target_gu
 	used_hook_list_head = hook_entry;
 
 	target_pte->execute_access = 0;
+
+	invalidate_ept_mappings(invept_type::invept_all_context, { });
 
 	hook_mutex.release();
 

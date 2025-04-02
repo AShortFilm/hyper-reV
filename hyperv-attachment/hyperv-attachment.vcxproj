@@ -179,6 +179,9 @@
     <ClInclude Include="src\structures\trap_frame.h" />
     <ClInclude Include="src\structures\virtual_address.h" />
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="src\slat\slat_intel.asm" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
