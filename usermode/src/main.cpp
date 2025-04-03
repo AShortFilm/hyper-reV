@@ -1,26 +1,23 @@
-#include <Windows.h>
 #include <iostream>
+#include <thread>
+#include <string>
 #include <print>
 
-#include "hypercall/hypercall.h"
+#include "commands/commands.h"
 
 std::int32_t main()
 {
-	std::uint64_t guest_target_physical_address = 0;
+	while (true)
+	{
+		std::print("> ");
 
-	std::print("enter target page guest physical address (hexadecimal): ");
-	std::cin >> std::hex >> guest_target_physical_address;
+		std::string command = { };
+		std::getline(std::cin, command);
 
-	std::uint64_t shadow_page_guest_physical_address = 0;
+		commands::process(command);
 
-	std::print("enter shadow page guest physical address (hexadecimal): ");
-	std::cin >> std::hex >> shadow_page_guest_physical_address;
-
-	std::uint64_t hypercall_response = hypercall::add_slat_code_hook(guest_target_physical_address, shadow_page_guest_physical_address);
-
-	std::println("hypercall response: 0x{:x}", hypercall_response);
-
-	std::system("pause");
+		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+	}
 
 	return 0;
 }

@@ -81,6 +81,9 @@
     <IntDir>$(SolutionDir)\build\$(Platform)\$(Configuration)\obj\$(TargetName)\</IntDir>
     <IncludePath>$(SolutionDir)shared;$(IncludePath)</IncludePath>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -140,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\commands\commands.cpp" />
     <ClCompile Include="src\hypercall\hypercall.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
@@ -147,6 +151,7 @@
     <MASM Include="src\hypercall\vmexit.asm" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\commands\commands.h" />
     <ClInclude Include="src\hypercall\hypercall.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
