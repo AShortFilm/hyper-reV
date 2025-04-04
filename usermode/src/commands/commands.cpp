@@ -100,6 +100,26 @@ void process_cgpm(CLI::App* cgpm)
 	}
 }
 
+CLI::App* init_gvat(CLI::App& app)
+{
+	CLI::App* gvat = app.add_subcommand("gvat", "translates a guest virtual address to its corresponding guest physical address, with the given guest cr3 value")->ignore_case();
+
+	gvat->add_option("virtual_address")->required();
+	gvat->add_option("cr3")->required();
+
+	return gvat;
+}
+
+void process_gvat(CLI::App* gvat)
+{
+	std::uint64_t virtual_address = get_command_option<std::uint64_t>(gvat, "virtual_address");
+	std::uint64_t cr3 = get_command_option<std::uint64_t>(gvat, "cr3");
+
+	std::uint64_t physical_address = hypercall::translate_guest_virtual_address(virtual_address, cr3);
+
+	std::println("physical address: 0x{:x}", physical_address);
+}
+
 void commands::process(std::string command)
 {
 	if (command.empty() == true)
@@ -113,6 +133,7 @@ void commands::process(std::string command)
 	CLI::App* rgpm = init_rgpm(app);
 	CLI::App* wgpm = init_wgpm(app);
 	CLI::App* cgpm = init_cgpm(app);
+	CLI::App* gvat = init_gvat(app);
 
 	try
 	{
@@ -129,6 +150,10 @@ void commands::process(std::string command)
 		else if (*cgpm)
 		{
 			process_cgpm(cgpm);
+		}
+		else if (*gvat)
+		{
+			process_gvat(gvat);
 		}
 	}
 	catch (const CLI::ParseError& error)
