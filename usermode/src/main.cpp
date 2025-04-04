@@ -4,9 +4,17 @@
 #include <print>
 
 #include "commands/commands.h"
+#include "system/system.h"
 
 std::int32_t main()
 {
+    if (sys::set_up() == 0)
+    {
+        std::system("pause");
+
+        return 1;
+    }
+
 	while (true)
 	{
 		std::print("> ");
