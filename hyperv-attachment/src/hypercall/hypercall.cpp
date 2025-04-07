@@ -60,11 +60,14 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
 
     while (size_left_to_read != 0)
     {
+        std::uint64_t size_left_of_destination_virtual_page = 0;
         std::uint64_t size_left_of_destination_slat_page = 0;
+
+        std::uint64_t size_left_of_source_virtual_page = 0;
         std::uint64_t size_left_of_source_slat_page = 0;
 
-        std::uint64_t guest_source_physical_address = memory_manager::translate_guest_virtual_address(guest_source_cr3, slat_cr3, { .address = guest_source_virtual_address + bytes_read });
-        std::uint64_t guest_destination_physical_address = memory_manager::translate_guest_virtual_address(guest_destination_cr3, slat_cr3, { .address = guest_destination_virtual_address + bytes_read });
+        std::uint64_t guest_source_physical_address = memory_manager::translate_guest_virtual_address(guest_source_cr3, slat_cr3, { .address = guest_source_virtual_address + bytes_read }, &size_left_of_source_virtual_page);
+        std::uint64_t guest_destination_physical_address = memory_manager::translate_guest_virtual_address(guest_destination_cr3, slat_cr3, { .address = guest_destination_virtual_address + bytes_read }, &size_left_of_destination_virtual_page);
 
         std::uint64_t host_destination = memory_manager::map_guest_physical(slat_cr3, guest_destination_physical_address, &size_left_of_destination_slat_page);
         std::uint64_t host_source = memory_manager::map_guest_physical(slat_cr3, guest_source_physical_address, &size_left_of_source_slat_page);
@@ -75,8 +78,11 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
         }
 
         std::uint64_t size_left_of_slat_pages = crt::min(size_left_of_source_slat_page, size_left_of_destination_slat_page);
+        std::uint64_t size_left_of_virtual_pages = crt::min(size_left_of_source_virtual_page, size_left_of_destination_virtual_page);
 
-        std::uint64_t copy_size = crt::min(size_left_to_read, size_left_of_slat_pages);
+        std::uint64_t size_left_of_pages = crt::min(size_left_of_slat_pages, size_left_of_virtual_pages);
+
+        std::uint64_t copy_size = crt::min(size_left_to_read, size_left_of_pages);
 
         crt::copy_memory(reinterpret_cast<void*>(host_destination), reinterpret_cast<const void*>(host_source), copy_size);
 
@@ -139,6 +145,16 @@ void hypercall::process(trap_frame_t* trap_frame)
         cr3 slat_cr3 = slat::get_cr3();
 
         trap_frame->rax = slat::add_slat_code_hook(slat_cr3, target_guest_physical_address, shadow_page_guest_physical_address);
+
+        break;
+    }
+    case hypercall_type_t::remove_slat_code_hook:
+    {
+        virtual_address_t target_guest_physical_address = { .address = trap_frame->rdx };
+
+        cr3 slat_cr3 = slat::get_cr3();
+
+        trap_frame->rax = slat::remove_slat_code_hook(slat_cr3, target_guest_physical_address);
 
         break;
     }

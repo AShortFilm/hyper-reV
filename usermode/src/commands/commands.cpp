@@ -2,6 +2,7 @@
 #include <CLI/CLI.hpp>
 #include <print>
 
+#include "../hook/hook.h"
 #include "../hypercall/hypercall.h"
 #include "../system/system.h"
 
@@ -12,7 +13,9 @@
 template <class t>
 t get_command_option(CLI::App* app, std::string option_name)
 {
-	return app->get_option(option_name)->as<t>();
+	auto option = app->get_option(option_name);
+
+	return option->empty() == false ? option->as<t>() : t{};
 }
 
 CLI::Option* add_command_option(CLI::App* app, std::string option_name)
@@ -237,6 +240,60 @@ void process_cgvm(CLI::App* wgvm)
 	}
 }
 
+CLI::App* init_akh(CLI::App& app, CLI::Transformer& aliases_transformer)
+{
+	CLI::App* akh = app.add_subcommand("akh", "add a hook on specified kernel code (given the guest virtual address)")->ignore_case();
+
+	add_transformed_command_option(akh, "virtual_address", aliases_transformer)->required();
+	add_command_option(akh, "--asmbytes")->check(CLI::Range(0, 255));
+
+	return akh;
+}
+
+void process_akh(CLI::App* akh)
+{
+	std::uint64_t virtual_address = get_command_option<std::uint64_t>(akh, "virtual_address");
+	std::vector<uint32_t> integral_asm_bytes = get_command_option<std::vector<uint32_t>>(akh, "--asmbytes");
+
+	std::vector<uint8_t> asm_bytes(integral_asm_bytes.begin(), integral_asm_bytes.end());
+
+	std::uint8_t hook_status = hook::add_kernel_hook(virtual_address, asm_bytes);
+
+	if (hook_status == 1)
+	{
+		std::println("success in hook");
+	}
+	else
+	{
+		std::println("failed to hook");
+	}
+}
+
+CLI::App* init_rkh(CLI::App& app, CLI::Transformer& aliases_transformer)
+{
+	CLI::App* rkh = app.add_subcommand("rkh", "remove a previously placed hook on specified kernel code (given the guest virtual address)")->ignore_case();
+
+	add_transformed_command_option(rkh, "virtual_address", aliases_transformer)->required();
+
+	return rkh;
+}
+
+void process_rkh(CLI::App* rkh)
+{
+	std::uint64_t virtual_address = get_command_option<std::uint64_t>(rkh, "virtual_address");
+
+	std::uint8_t hook_removal_status = hook::remove_kernel_hook(virtual_address);
+
+	if (hook_removal_status == 1)
+	{
+		std::println("success in hook removal");
+	}
+	else
+	{
+		std::println("failed to remove hook");
+	}
+}
+
 void commands::process(std::string command)
 {
 	if (command.empty() == true)
@@ -258,6 +315,8 @@ void commands::process(std::string command)
 	CLI::App* rgvm = init_rgvm(app, aliases_transformer);
 	CLI::App* wgvm = init_wgvm(app, aliases_transformer);
 	CLI::App* cgvm = init_cgvm(app, aliases_transformer);
+	CLI::App* akh = init_akh(app, aliases_transformer);
+	CLI::App* rkh = init_rkh(app, aliases_transformer);
 
 	try
 	{
@@ -270,6 +329,8 @@ void commands::process(std::string command)
 		d_process_command(rgvm);
 		d_process_command(wgvm);
 		d_process_command(cgvm);
+		d_process_command(akh);
+		d_process_command(rkh);
 	}
 	catch (const CLI::ParseError& error)
 	{

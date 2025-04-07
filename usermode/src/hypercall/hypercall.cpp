@@ -86,3 +86,10 @@ std::uint64_t hypercall::add_slat_code_hook(std::uint64_t target_guest_physical_
 
 	return make_hypercall(call_type, 0, target_guest_physical_address, shadow_page_guest_physical_address, 0);
 }
+
+std::uint64_t hypercall::remove_slat_code_hook(std::uint64_t target_guest_physical_address)
+{
+	hypercall_type_t call_type = hypercall_type_t::remove_slat_code_hook;
+
+	return make_hypercall(call_type, 0, target_guest_physical_address, 0, 0);
+}

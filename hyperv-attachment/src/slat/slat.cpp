@@ -267,9 +267,71 @@ std::uint64_t slat::add_slat_code_hook(cr3 slat_cr3, virtual_address_t target_gu
 	hook_entry->set_original_pfn(target_pte->page_frame_number);
 	hook_entry->set_shadow_pfn(shadow_page_host_physical_address >> 12);
 
+	hook_entry->set_original_read_access(target_pte->read_access);
+	hook_entry->set_original_write_access(target_pte->write_access);
+	hook_entry->set_original_execute_access(target_pte->execute_access);
+
 	used_hook_list_head = hook_entry;
 
 	target_pte->execute_access = 0;
+
+	invalidate_ept_mappings(invept_type::invept_all_context, { });
+
+	hook_mutex.release();
+
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+std::uint64_t slat::remove_slat_code_hook(cr3 slat_cr3, virtual_address_t target_guest_physical_address)
+{
+#ifdef _INTELMACHINE
+	hook_mutex.lock();
+
+	hook_entry_t* previous_hook_entry = nullptr;
+
+	hook_entry_t* hook_entry = hook_entry_t::find(used_hook_list_head, target_guest_physical_address.address >> 12, &previous_hook_entry);
+
+	if (hook_entry == nullptr)
+	{
+		hook_mutex.release();
+
+		return 0;
+	}
+
+	ept_pte* target_pte = slat_get_pte(slat_cr3, target_guest_physical_address, 1);
+
+	if (target_pte == nullptr)
+	{
+		hook_mutex.release();
+
+		return 0;
+	}
+
+	if (previous_hook_entry == nullptr)
+	{
+		used_hook_list_head = hook_entry->get_next();
+	}
+	else
+	{
+		previous_hook_entry->set_next(hook_entry->get_next());
+	}
+
+	hook_entry->set_next(available_hook_list_head);
+
+	available_hook_list_head = hook_entry;
+
+	ept_pte new_pte = { .flags = target_pte->flags };
+
+	new_pte.page_frame_number = hook_entry->get_original_pfn();
+
+	new_pte.read_access = hook_entry->get_original_read_access();
+	new_pte.write_access = hook_entry->get_original_write_access();
+	new_pte.execute_access = hook_entry->get_original_execute_access();
+
+	*target_pte = new_pte;
 
 	invalidate_ept_mappings(invept_type::invept_all_context, { });
 
@@ -354,6 +416,21 @@ std::uint64_t slat::hook_entry_t::get_shadow_pfn() const
 	return (this->higher_shadow_pfn << 32) | this->lower_shadow_pfn;
 }
 
+std::uint64_t slat::hook_entry_t::get_original_read_access() const
+{
+	return this->original_read_access;
+}
+
+std::uint64_t slat::hook_entry_t::get_original_write_access() const
+{
+	return this->original_write_access;
+}
+
+std::uint64_t slat::hook_entry_t::get_original_execute_access() const
+{
+	return this->original_execute_access;
+}
+
 void slat::hook_entry_t::set_original_pfn(const std::uint64_t original_pfn)
 {
 	this->lower_original_pfn = static_cast<std::uint32_t>(original_pfn);
@@ -366,17 +443,39 @@ void slat::hook_entry_t::set_shadow_pfn(const std::uint64_t shadow_pfn)
 	this->higher_shadow_pfn = shadow_pfn >> 32;
 }
 
-slat::hook_entry_t* slat::hook_entry_t::find(hook_entry_t* list_head, std::uint64_t target_original_pfn)
+void slat::hook_entry_t::set_original_read_access(const std::uint64_t original_read_access_in)
+{
+	this->original_read_access = original_read_access_in;
+}
+
+void slat::hook_entry_t::set_original_write_access(const std::uint64_t original_write_access_in)
+{
+	this->original_write_access = original_write_access_in;
+}
+
+void slat::hook_entry_t::set_original_execute_access(const std::uint64_t original_execute_access_in)
+{
+	this->original_execute_access = original_execute_access_in;
+}
+
+slat::hook_entry_t* slat::hook_entry_t::find(hook_entry_t* list_head, std::uint64_t target_original_pfn, hook_entry_t** previous_entry_out)
 {
 	hook_entry_t* current_entry = list_head;
+	hook_entry_t* previous_entry = nullptr;
 
 	while (current_entry != nullptr)
 	{
 		if (current_entry->get_original_pfn() == target_original_pfn)
 		{
+			if (previous_entry_out != nullptr)
+			{
+				*previous_entry_out = previous_entry;
+			}
+
 			return current_entry;
 		}
 
+		previous_entry = current_entry;
 		current_entry = current_entry->get_next();
 	}
 

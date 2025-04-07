@@ -2,8 +2,10 @@
 #include <thread>
 #include <string>
 #include <print>
+#include <Windows.h>
 
 #include "commands/commands.h"
+#include "hook/hook.h"
 #include "system/system.h"
 
 std::int32_t main()

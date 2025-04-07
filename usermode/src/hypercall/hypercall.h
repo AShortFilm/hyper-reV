@@ -14,4 +14,5 @@ namespace hypercall
 	std::uint64_t read_guest_cr3();
 
 	std::uint64_t add_slat_code_hook(std::uint64_t target_guest_physical_address, std::uint64_t shadow_page_guest_physical_address);
+	std::uint64_t remove_slat_code_hook(std::uint64_t target_guest_physical_address);
 }
