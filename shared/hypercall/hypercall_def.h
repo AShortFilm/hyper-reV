@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <structures/memory_operation.h>
 
 enum class hypercall_type_t : std::uint64_t
 {
@@ -9,17 +10,15 @@ enum class hypercall_type_t : std::uint64_t
     translate_guest_virtual_address,
     read_guest_cr3,
     add_slat_code_hook,
-    remove_slat_code_hook
-};
-
-enum class memory_operation_t : std::uint64_t
-{
-    read_operation,
-    write_operation
+    remove_slat_code_hook,
+    log_current_state,
+    flush_logs
 };
 
 #pragma warning(push)
 #pragma warning(disable: 4201)
+
+constexpr std::uint64_t hypercall_key = 0x4E47;
 
 union hypercall_info_t
 {

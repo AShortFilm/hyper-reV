@@ -3,6 +3,7 @@
 #include "../memory_manager/memory_manager.h"
 #include "../slat/slat.h"
 #include "../arch/arch.h"
+#include "../logs/logs.h"
 #include "../crt/crt.h"
 
 std::uint64_t operate_on_guest_physical_memory(trap_frame_t* trap_frame, memory_operation_t operation)
@@ -69,6 +70,11 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
         std::uint64_t guest_source_physical_address = memory_manager::translate_guest_virtual_address(guest_source_cr3, slat_cr3, { .address = guest_source_virtual_address + bytes_read }, &size_left_of_source_virtual_page);
         std::uint64_t guest_destination_physical_address = memory_manager::translate_guest_virtual_address(guest_destination_cr3, slat_cr3, { .address = guest_destination_virtual_address + bytes_read }, &size_left_of_destination_virtual_page);
 
+        if (guest_source_physical_address == 0 || guest_destination_virtual_address == 0)
+        {
+            break;
+        }
+
         std::uint64_t host_destination = memory_manager::map_guest_physical(slat_cr3, guest_destination_physical_address, &size_left_of_destination_slat_page);
         std::uint64_t host_source = memory_manager::map_guest_physical(slat_cr3, guest_source_physical_address, &size_left_of_source_slat_page);
 
@@ -91,6 +97,31 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
     }
 
     return bytes_read;
+}
+
+void log_current_state(trap_frame_log_t trap_frame)
+{
+    trap_frame.rip = arch::get_guest_rip();
+
+    logs::add_log(trap_frame);
+}
+
+std::uint64_t flush_logs(trap_frame_t* trap_frame)
+{
+    std::uint64_t stored_logs_count = logs::stored_log_index;
+
+    cr3 guest_cr3 = arch::get_guest_cr3();
+    cr3 slat_cr3 = slat::get_cr3();
+
+    std::uint64_t guest_virtual_address = trap_frame->rdx;
+    std::uint16_t count = static_cast<std::uint16_t>(trap_frame->r8);
+
+    if (logs::flush(slat_cr3, guest_virtual_address, guest_cr3, count) == 0)
+    {
+        return 0;
+    }
+
+    return stored_logs_count;
 }
 
 void hypercall::process(trap_frame_t* trap_frame)
@@ -158,10 +189,26 @@ void hypercall::process(trap_frame_t* trap_frame)
 
         break;
     }
+    case hypercall_type_t::log_current_state:
+    {
+        trap_frame_log_t trap_frame_log = { };
+
+        static_cast<trap_frame_t&>(trap_frame_log) = *trap_frame;
+
+        log_current_state(trap_frame_log);
+
+        break;
+    }
+    case hypercall_type_t::flush_logs:
+    {
+        trap_frame->rax = flush_logs(trap_frame);
+
+        break;
+    }
     case hypercall_type_t::null:
     default:
         break;
     }
 
-    arch::advance_rip();
+    arch::advance_guest_rip();
 }

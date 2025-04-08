@@ -33,7 +33,7 @@ namespace hook
 
 	inline std::unordered_map<std::uint64_t, kernel_hook_info_t> kernel_hook_list = { };
 
-	inline std::uint64_t kernel_hook_holder_base = 0;
-	inline std::uint64_t kernel_hook_holder_physical_page = 0;
+	inline std::uint64_t kernel_detour_holder_base = 0;
+	inline std::uint64_t kernel_detour_holder_physical_page = 0;
 	inline std::uint8_t* kernel_detour_holder_shadow_page_mapped = nullptr;
 }

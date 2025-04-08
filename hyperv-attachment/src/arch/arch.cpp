@@ -5,6 +5,19 @@
 #include <ia32-doc/ia32.hpp>
 #endif
 
+std::uint64_t arch::get_vmexit_instruction_length()
+{
+#ifdef _INTELMACHINE
+	std::uint64_t vmexit_instruction_length = 0;
+
+	__vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH, &vmexit_instruction_length);
+
+	return vmexit_instruction_length;
+#else
+	return 0;
+#endif
+}
+
 std::uint64_t arch::get_vmexit_reason()
 {
 #ifdef _INTELMACHINE
@@ -49,16 +62,35 @@ cr3 arch::get_guest_cr3()
 	return guest_cr3;
 }
 
-void arch::advance_rip()
+std::uint64_t arch::get_guest_rip()
 {
 #ifdef _INTELMACHINE
 	std::uint64_t guest_rip = 0;
-	std::uint64_t instruction_length = 0;
 
 	__vmx_vmread(VMCS_GUEST_RIP, &guest_rip);
-	__vmx_vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH, &instruction_length);
 
-	__vmx_vmwrite(VMCS_GUEST_RIP, guest_rip + instruction_length);
+	return guest_rip;
+#else
+	return 0;
+#endif
+}
+
+void arch::set_guest_rip(std::uint64_t guest_rip)
+{
+#ifdef _INTELMACHINE
+	__vmx_vmwrite(VMCS_GUEST_RIP, guest_rip);
+#else
+	return 0;
+#endif
+}
+
+void arch::advance_guest_rip()
+{
+#ifdef _INTELMACHINE
+	std::uint64_t guest_rip = get_guest_rip();
+	std::uint64_t instruction_length = get_vmexit_instruction_length();
+
+	set_guest_rip(guest_rip + instruction_length);
 #else
 
 #endif

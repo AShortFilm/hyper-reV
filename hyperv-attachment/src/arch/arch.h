@@ -4,11 +4,15 @@
 
 namespace arch
 {
+	std::uint64_t get_vmexit_instruction_length();
 	std::uint64_t get_vmexit_reason();
 	std::uint8_t is_cpuid(std::uint64_t vmexit_reason);
 	std::uint8_t is_slat_violation(std::uint64_t vmexit_reason);
 
 	cr3 get_guest_cr3();
 
-	void advance_rip();
+	std::uint64_t get_guest_rip();
+	void set_guest_rip(std::uint64_t guest_rip);
+
+	void advance_guest_rip();
 }

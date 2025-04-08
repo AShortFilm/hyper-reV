@@ -4,6 +4,7 @@
 #include "memory_manager/memory_manager.h"
 #include "memory_manager/heap_manager.h"
 #include "slat/slat.h"
+#include "logs/logs.h"
 #include "structures/trap_frame.h"
 #include <ia32-doc/ia32.hpp>
 #include <intrin.h>
@@ -23,7 +24,7 @@ std::uint64_t vmexit_handler_detour(trap_frame_t** a1, std::uint64_t a2, std::ui
     {
         hypercall_info_t hypercall_info = { .value = trap_frame->rcx };
 
-        if (hypercall_info.key == 0x4E47)
+        if (hypercall_info.key == hypercall_key)
         {
             hypercall::process(trap_frame);
 
@@ -49,4 +50,5 @@ void entry_point(std::uint8_t** vmexit_handler_detour_out, std::uint8_t* origina
     heap_manager::set_up(mapped_heap_base, heap_size);
 
     slat::set_up();
+    logs::set_up();
 }

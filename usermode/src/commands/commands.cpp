@@ -1,10 +1,12 @@
 #include "commands.h"
 #include <CLI/CLI.hpp>
-#include <print>
-
+#include <hypercall/hypercall_def.h>
 #include "../hook/hook.h"
 #include "../hypercall/hypercall.h"
 #include "../system/system.h"
+
+#include <print>
+#include <array>
 
 #define d_invoke_command_processor(command) process_##command(##command)
 #define d_initial_process_command(command) if (*##command) d_invoke_command_processor(command)
@@ -28,6 +30,18 @@ CLI::Option* add_transformed_command_option(CLI::App* app, std::string option_na
 	CLI::Option* option = add_command_option(app, option_name);
 
 	return option->transform(transformer);
+}
+
+std::uint8_t get_command_flag(CLI::App* app, std::string flag_name)
+{
+	auto option = app->get_option(flag_name);
+
+	return !option->empty();
+}
+
+CLI::Option* add_command_flag(CLI::App* app, std::string flag_name)
+{
+	return app->add_flag(flag_name);
 }
 
 CLI::App* init_rgpm(CLI::App& app, CLI::Transformer& aliases_transformer)
@@ -242,10 +256,11 @@ void process_cgvm(CLI::App* wgvm)
 
 CLI::App* init_akh(CLI::App& app, CLI::Transformer& aliases_transformer)
 {
-	CLI::App* akh = app.add_subcommand("akh", "add a hook on specified kernel code (given the guest virtual address)")->ignore_case();
+	CLI::App* akh = app.add_subcommand("akh", "add a hook on specified kernel code (given the guest virtual address) (asmbytes in form: 0xE8 0x12 0x23 0x34 0x45")->ignore_case();
 
 	add_transformed_command_option(akh, "virtual_address", aliases_transformer)->required();
-	add_command_option(akh, "--asmbytes")->check(CLI::Range(0, 255));
+	add_command_option(akh, "--asmbytes")->multi_option_policy(CLI::MultiOptionPolicy::TakeAll)->expected(-1);
+	add_command_flag(akh, "--monitor");
 
 	return akh;
 }
@@ -253,9 +268,28 @@ CLI::App* init_akh(CLI::App& app, CLI::Transformer& aliases_transformer)
 void process_akh(CLI::App* akh)
 {
 	std::uint64_t virtual_address = get_command_option<std::uint64_t>(akh, "virtual_address");
-	std::vector<uint32_t> integral_asm_bytes = get_command_option<std::vector<uint32_t>>(akh, "--asmbytes");
+	std::vector<uint8_t> asm_bytes = get_command_option<std::vector<uint8_t>>(akh, "--asmbytes");
 
-	std::vector<uint8_t> asm_bytes(integral_asm_bytes.begin(), integral_asm_bytes.end());
+	std::uint8_t monitor = get_command_flag(akh, "--monitor");
+
+	if (monitor == 1)
+	{
+		std::array<std::uint8_t, 9> monitor_bytes = {
+			0x51, // push rcx
+			0xB9, 0x00, 0x00, 0x00, 0x00, // mov ecx, 0
+			0x0F, 0xA2, // cpuid
+			0x59 // pop rcx
+		};
+
+		hypercall_info_t call_info = { };
+
+		call_info.key = hypercall_key;
+		call_info.call_type = hypercall_type_t::log_current_state;
+
+		*reinterpret_cast<std::uint32_t*>(&monitor_bytes[2]) = static_cast<std::uint32_t>(call_info.value);
+
+		asm_bytes.insert(asm_bytes.end(), monitor_bytes.begin(), monitor_bytes.end());
+	}
 
 	std::uint8_t hook_status = hook::add_kernel_hook(virtual_address, asm_bytes);
 
@@ -294,6 +328,44 @@ void process_rkh(CLI::App* rkh)
 	}
 }
 
+CLI::App* init_fl(CLI::App& app)
+{
+	CLI::App* fl = app.add_subcommand("fl", "flush trap frame logs from hooks")->ignore_case();
+
+	return fl;
+}
+
+void process_fl(CLI::App* fl)
+{
+	constexpr std::uint64_t log_count = 32;
+
+	std::vector<trap_frame_log_t> logs(log_count);
+
+	std::uint64_t logs_flushed = hypercall::flush_logs(logs);
+
+	if (logs_flushed != 0)
+	{
+		std::println("success in flushing logs ({}), outputting logs now:\n\n", logs_flushed);
+
+		for (std::uint64_t i = 0; i < logs_flushed; i++)
+		{
+			const trap_frame_log_t& log = logs[i];
+
+			if (log.rip == 0)
+			{
+				break;
+			}
+
+			std::println("{}. rip=0x{:X} rax=0x{:X} rcx=0x{:X} rdx=0x{:X} rbx=0x{:X}\nrsp=0x{:X} rbp=0x{:X} rsi=0x{:X} rdi=0x{:X} r8=0x{:X}\nr9=0x{:X} r10=0x{:X} r11=0x{:X} r12=0x{:X} r13=0x{:X}\nr14=0x{:X} r15=0x{:X}\n"
+				,i, log.rip, log.rax, log.rcx, log.rdx, log.rbx, log.rsp, log.rbp, log.rsi, log.rdi, log.r8, log.r9, log.r10, log.r11, log.r12, log.r13, log.r14, log.r15);
+		}
+	}
+	else
+	{
+		std::println("failed to flush logs");
+	}
+}
+
 void commands::process(std::string command)
 {
 	if (command.empty() == true)
@@ -317,6 +389,7 @@ void commands::process(std::string command)
 	CLI::App* cgvm = init_cgvm(app, aliases_transformer);
 	CLI::App* akh = init_akh(app, aliases_transformer);
 	CLI::App* rkh = init_rkh(app, aliases_transformer);
+	CLI::App* fl = init_fl(app);
 
 	try
 	{
@@ -331,6 +404,7 @@ void commands::process(std::string command)
 		d_process_command(cgvm);
 		d_process_command(akh);
 		d_process_command(rkh);
+		d_process_command(fl);
 	}
 	catch (const CLI::ParseError& error)
 	{

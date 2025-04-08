@@ -36,6 +36,9 @@
     <ClCompile Include="src\memory_manager\heap_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\logs\logs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ext\ia32-doc\ia32.hpp">
@@ -59,10 +62,10 @@
     <ClInclude Include="src\hypercall\hypercall.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\structures\trap_frame.h">
+    <ClInclude Include="src\memory_manager\heap_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\memory_manager\heap_manager.h">
+    <ClInclude Include="src\logs\logs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

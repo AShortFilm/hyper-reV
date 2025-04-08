@@ -27,17 +27,17 @@ std::uint8_t hook::set_up()
 		return 0;
 	}
 
-	kernel_hook_holder_physical_page = hypercall::translate_guest_virtual_address(kernel_hook_holder_base, sys::current_cr3);
+	kernel_detour_holder_physical_page = hypercall::translate_guest_virtual_address(kernel_detour_holder_base, sys::current_cr3);
 
-	if (kernel_hook_holder_physical_page == 0)
+	if (kernel_detour_holder_physical_page == 0)
 	{
 		return 0;
 	}
 
 	// in case of a previously wrongfully ended session which would've left the hook still applied
-	hypercall::remove_slat_code_hook(kernel_hook_holder_physical_page);
+	hypercall::remove_slat_code_hook(kernel_detour_holder_physical_page);
 
-	std::uint64_t hook_status = hypercall::add_slat_code_hook(kernel_hook_holder_physical_page, shadow_page_physical);
+	std::uint64_t hook_status = hypercall::add_slat_code_hook(kernel_detour_holder_physical_page, shadow_page_physical);
 
 	if (hook_status == 0)
 	{
@@ -60,7 +60,7 @@ union parted_address_t
 	std::uint64_t value;
 };
 
-std::vector<std::uint8_t> get_routine_aligned_bytes(std::uint8_t* routine, std::uint8_t minimum_size)
+std::vector<std::uint8_t> get_routine_aligned_bytes(std::uint8_t* routine, std::uint64_t minimum_size)
 {
 	ZydisDecoder decoder = { };
 
@@ -89,18 +89,18 @@ std::vector<std::uint8_t> get_routine_aligned_bytes(std::uint8_t* routine, std::
 
 #define d_inline_hook_bytes_size 14
 
-std::vector<std::uint8_t> load_original_bytes_into_shadow_page(std::uint8_t* shadow_page_virtual, std::uint64_t routine_to_hook_physical)
+std::vector<std::uint8_t> load_original_bytes_into_shadow_page(std::uint8_t* shadow_page_virtual, std::uint64_t routine_to_hook_physical, std::uint64_t extra_asm_byte_count)
 {
 	const std::uint64_t page_offset = routine_to_hook_physical & 0xFFF;
 
 	hypercall::read_guest_physical_memory(shadow_page_virtual, routine_to_hook_physical - page_offset, 0x1000);
 
-	return get_routine_aligned_bytes(shadow_page_virtual + page_offset, d_inline_hook_bytes_size);
+	return get_routine_aligned_bytes(shadow_page_virtual + page_offset, d_inline_hook_bytes_size + extra_asm_byte_count);
 }
 
-void set_up_inline_hook(std::uint8_t* shadow_page_virtual, std::uint64_t routine_to_hook_physical, std::uint64_t detour_address)
+void set_up_inline_hook(std::uint8_t* shadow_page_virtual, std::uint64_t routine_to_hook_physical, std::uint64_t detour_address, std::vector<std::uint8_t> extra_assembled_bytes)
 {
-	std::array<std::uint8_t, d_inline_hook_bytes_size> inline_hook_bytes = {
+	std::array<std::uint8_t, d_inline_hook_bytes_size> jmp_to_detour_bytes = {
 		0x68, 0x21, 0x43, 0x65, 0x87, // push   0xffffffff87654321
 		0xC7, 0x44, 0x24, 0x04, 0x78, 0x56, 0x34, 0x12, // mov    DWORD PTR [rsp+0x4],0x12345678
 		0xC3 // ret
@@ -108,15 +108,19 @@ void set_up_inline_hook(std::uint8_t* shadow_page_virtual, std::uint64_t routine
 
 	parted_address_t parted_subroutine_to_jmp_to = { .value = detour_address };
 
-	*reinterpret_cast<std::uint32_t*>(&inline_hook_bytes[1]) = parted_subroutine_to_jmp_to.u.low_part;
-	*reinterpret_cast<std::uint32_t*>(&inline_hook_bytes[9]) = parted_subroutine_to_jmp_to.u.high_part;
+	*reinterpret_cast<std::uint32_t*>(&jmp_to_detour_bytes[1]) = parted_subroutine_to_jmp_to.u.low_part;
+	*reinterpret_cast<std::uint32_t*>(&jmp_to_detour_bytes[9]) = parted_subroutine_to_jmp_to.u.high_part;
 
 	const std::uint64_t page_offset = routine_to_hook_physical & 0xFFF;
 
-	memcpy(shadow_page_virtual + page_offset, inline_hook_bytes.data(), sizeof(inline_hook_bytes));
+	std::vector<std::uint8_t> inline_hook_bytes = extra_assembled_bytes;
+
+	inline_hook_bytes.insert(inline_hook_bytes.end(), jmp_to_detour_bytes.begin(), jmp_to_detour_bytes.end());
+
+	memcpy(shadow_page_virtual + page_offset, inline_hook_bytes.data(), inline_hook_bytes.size());
 }
 
-std::uint8_t set_up_hook_handler(std::uint64_t routine_to_hook_virtual, std::uint64_t routine_to_hook_physical, std::uint64_t shadow_page_physical, std::vector<std::uint8_t> extra_assembled_bytes, std::uint16_t& detour_holder_shadow_offset, const std::vector<std::uint8_t>& original_bytes)
+std::uint8_t set_up_hook_handler(std::uint64_t routine_to_hook_virtual, std::uint64_t routine_to_hook_physical, std::uint64_t shadow_page_physical, std::uint16_t& detour_holder_shadow_offset, const std::vector<std::uint8_t>& original_bytes)
 {
 	std::array<std::uint8_t, 14> return_to_original_bytes = {
 		0x68, 0x21, 0x43, 0x65, 0x87, // push   0xffffffff87654321
@@ -131,7 +135,6 @@ std::uint8_t set_up_hook_handler(std::uint64_t routine_to_hook_virtual, std::uin
 
 	std::vector<std::uint8_t> hook_handler_bytes = original_bytes;
 
-	hook_handler_bytes.insert(hook_handler_bytes.end(), extra_assembled_bytes.begin(), extra_assembled_bytes.end());
 	hook_handler_bytes.insert(hook_handler_bytes.end(), return_to_original_bytes.begin(), return_to_original_bytes.end());
 
 	void* bytes_buffer = kernel_detour_holder::allocate_memory(static_cast<std::uint16_t>(hook_handler_bytes.size()));
@@ -176,7 +179,7 @@ std::uint8_t hook::add_kernel_hook(std::uint64_t routine_to_hook_virtual, std::v
 		return 0;
 	}
 
-	std::vector<std::uint8_t> original_bytes = load_original_bytes_into_shadow_page(static_cast<std::uint8_t*>(shadow_page_virtual), routine_to_hook_physical);
+	std::vector<std::uint8_t> original_bytes = load_original_bytes_into_shadow_page(static_cast<std::uint8_t*>(shadow_page_virtual), routine_to_hook_physical, extra_assembled_bytes.size());
 
 	if (original_bytes.empty() == true)
 	{
@@ -185,16 +188,16 @@ std::uint8_t hook::add_kernel_hook(std::uint64_t routine_to_hook_virtual, std::v
 
 	std::uint16_t detour_holder_shadow_offset = 0;
 
-	std::uint8_t status = set_up_hook_handler(routine_to_hook_virtual, routine_to_hook_physical, shadow_page_physical, extra_assembled_bytes, detour_holder_shadow_offset, original_bytes);
+	std::uint8_t status = set_up_hook_handler(routine_to_hook_virtual, routine_to_hook_physical, shadow_page_physical, detour_holder_shadow_offset, original_bytes);
 
 	if (status == 0)
 	{
 		return 0;
 	}
 
-	std::uint64_t detour_address = kernel_hook_holder_base + detour_holder_shadow_offset;
+	std::uint64_t detour_address = kernel_detour_holder_base + detour_holder_shadow_offset;
 
-	set_up_inline_hook(static_cast<std::uint8_t*>(shadow_page_virtual), routine_to_hook_physical, detour_address);
+	set_up_inline_hook(static_cast<std::uint8_t*>(shadow_page_virtual), routine_to_hook_physical, detour_address, extra_assembled_bytes);
 
 	std::uint64_t hook_status = hypercall::add_slat_code_hook(routine_to_hook_physical, shadow_page_physical);
 
@@ -240,12 +243,12 @@ std::uint8_t hook::remove_kernel_hook(std::uint64_t hooked_routine_virtual)
 
 	kernel_detour_holder::free_memory(detour_holder_allocation);
 
-	/*if (sys::user::free_memory(hook_info.get_mapped_shadow_page()) == 0)
+	if (sys::user::free_memory(hook_info.get_mapped_shadow_page()) == 0)
 	{
 		std::println("unable to deallocate mapped shadow page");
 
 		return 0;
-	}*/
+	}
 
 	return 1;
 }

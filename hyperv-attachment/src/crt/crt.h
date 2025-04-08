@@ -12,6 +12,12 @@ namespace crt
 	}
 
 	template <class t>
+	t max(t a, t b)
+	{
+		return (a < b) ? b : a;
+	}
+
+	template <class t>
 	void swap(t& a, t& b)
 	{
 		t cache = a;
@@ -22,8 +28,8 @@ namespace crt
 
 	class mutex_t
 	{
-	private:
-		std::int64_t value;
+	protected:
+		volatile std::int64_t value;
 
 	public:
 		mutex_t();

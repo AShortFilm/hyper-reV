@@ -13,4 +13,15 @@ struct trap_frame_t
     std::uint64_t rdi;
     std::uint64_t r8;
     std::uint64_t r9;
+    std::uint64_t r10;
+    std::uint64_t r11;
+    std::uint64_t r12;
+    std::uint64_t r13;
+    std::uint64_t r14;
+    std::uint64_t r15;
+};
+
+struct trap_frame_log_t : trap_frame_t
+{
+    std::uint64_t rip;
 };

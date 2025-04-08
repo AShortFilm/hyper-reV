@@ -7,7 +7,7 @@ std::uint64_t make_hypercall(hypercall_type_t call_type, std::uint64_t call_rese
 {
 	hypercall_info_t hypercall_info = { };
 
-	hypercall_info.key = 0x4E47;
+	hypercall_info.key = hypercall_key;
 	hypercall_info.call_type = call_type;
 	hypercall_info.call_reserved_data = call_reserved_data;
 
@@ -92,4 +92,11 @@ std::uint64_t hypercall::remove_slat_code_hook(std::uint64_t target_guest_physic
 	hypercall_type_t call_type = hypercall_type_t::remove_slat_code_hook;
 
 	return make_hypercall(call_type, 0, target_guest_physical_address, 0, 0);
+}
+
+std::uint64_t hypercall::flush_logs(std::vector<trap_frame_log_t>& logs)
+{
+	hypercall_type_t call_type = hypercall_type_t::flush_logs;
+
+	return make_hypercall(call_type, 0, reinterpret_cast<std::uint64_t>(logs.data()), logs.size(), 0);
 }

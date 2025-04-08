@@ -11,7 +11,7 @@
 
 extern "C" NTSTATUS NTAPI RtlAdjustPrivilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread, std::uint8_t* previous_enabled_state);
 
-std::uint64_t find_kernel_hook_holder_base_address()
+std::uint64_t find_kernel_detour_holder_base_address()
 {
 	constexpr std::uint64_t headers_size = 0x1000;
 
@@ -75,9 +75,9 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
-	hook::kernel_hook_holder_base = find_kernel_hook_holder_base_address();
+	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address();
 
-	if (hook::kernel_hook_holder_base == 0)
+	if (hook::kernel_detour_holder_base == 0)
 	{
 		std::println("unable to locate kernel hook holder");
 

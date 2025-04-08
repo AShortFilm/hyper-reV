@@ -1,5 +1,5 @@
 #pragma once
-#include "../structures/trap_frame.h"
+#include <structures/trap_frame.h>
 
 namespace hypercall
 {
