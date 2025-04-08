@@ -49,6 +49,14 @@ std::uint8_t hook::set_up()
 	return 1;
 }
 
+void hook::clean_up()
+{
+	for (const auto& [virtual_address, info] : kernel_hook_list)
+	{
+		remove_kernel_hook(virtual_address);
+	}
+}
+
 union parted_address_t
 {
 	struct

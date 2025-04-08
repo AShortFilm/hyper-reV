@@ -1,4 +1,5 @@
 #pragma once
+#include <unordered_map>
 #include <optional>
 #include <string>
 #include "system_def.h"
@@ -6,6 +7,7 @@
 namespace sys
 {
 	std::uint8_t set_up();
+	void clean_up();
 
 	std::uint8_t acquire_privilege();
 
@@ -21,6 +23,8 @@ namespace sys
 		void* allocate_locked_memory(std::uint64_t size, std::uint32_t protection);
 		std::uint8_t free_memory(void* address);
 	}
+
+	inline std::unordered_map<std::string, std::uint64_t> ntoskrnl_exports = { };
 
 	inline std::uint64_t ntoskrnl_base_address = 0;
 	inline std::uint64_t current_cr3 = 0;

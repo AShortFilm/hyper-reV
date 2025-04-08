@@ -378,7 +378,11 @@ void commands::process(std::string command)
 
 	std::unordered_map<std::string, std::uint64_t> aliases = { { "nt", sys::ntoskrnl_base_address }, { "current_cr3", sys::current_cr3 } };
 
+	aliases.insert(sys::ntoskrnl_exports.begin(), sys::ntoskrnl_exports.end());
+
 	CLI::Transformer aliases_transformer = CLI::Transformer(aliases, CLI::ignore_case);
+
+	aliases_transformer.description(" can_use_aliases");
 
 	CLI::App* rgpm = init_rgpm(app, aliases_transformer);
 	CLI::App* wgpm = init_wgpm(app, aliases_transformer);

@@ -24,10 +24,17 @@ std::int32_t main()
 		std::string command = { };
 		std::getline(std::cin, command);
 
+		if (command == "exit")
+		{
+			break;
+		}
+
 		commands::process(command);
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(30));
 	}
+
+	sys::clean_up();
 
 	return 0;
 }

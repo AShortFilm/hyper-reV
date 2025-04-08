@@ -11,7 +11,7 @@
 
 extern "C" NTSTATUS NTAPI RtlAdjustPrivilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread, std::uint8_t* previous_enabled_state);
 
-std::uint64_t find_kernel_detour_holder_base_address()
+std::vector<std::uint8_t> dump_ntoskrnl()
 {
 	constexpr std::uint64_t headers_size = 0x1000;
 
@@ -21,11 +21,27 @@ std::uint64_t find_kernel_detour_holder_base_address()
 
 	if (bytes_read != headers_size)
 	{
-		return 0;
+		return { };
 	}
 
-	portable_executable::image_t* ntoskrnl = reinterpret_cast<portable_executable::image_t*>(buffer.data());
+	const portable_executable::image_t* ntoskrnl_image = reinterpret_cast<portable_executable::image_t*>(buffer.data());
 
+	buffer.resize(ntoskrnl_image->nt_headers()->optional_header.size_of_image, 0);
+
+	const std::uint64_t target_size = buffer.size();
+
+	bytes_read = hypercall::read_guest_virtual_memory(buffer.data(), sys::ntoskrnl_base_address, sys::current_cr3, target_size);
+
+	if (bytes_read != target_size)
+	{
+		return { };
+	}
+
+	return buffer;
+}
+
+std::uint64_t find_kernel_detour_holder_base_address(portable_executable::image_t* ntoskrnl)
+{
 	for (const auto& current_section : ntoskrnl->sections())
 	{
 		std::string_view current_section_name(current_section.name);
@@ -37,6 +53,18 @@ std::uint64_t find_kernel_detour_holder_base_address()
 	}
 
 	return 0;
+}
+
+void parse_ntoskrnl_exports(portable_executable::image_t* ntoskrnl)
+{
+	for (const auto& current_export : ntoskrnl->exports())
+	{
+		std::string current_export_name = "nt!" + current_export.name;
+
+		std::uint64_t delta = reinterpret_cast<std::uint64_t>(current_export.address) - ntoskrnl->as<std::uint64_t>();
+
+		sys::ntoskrnl_exports[current_export_name] = sys::ntoskrnl_base_address + delta;
+	}
 }
 
 std::uint8_t sys::set_up()
@@ -75,7 +103,18 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
-	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address();
+	std::vector<std::uint8_t> ntoskrnl_dump = dump_ntoskrnl();
+
+	if (ntoskrnl_dump.empty() == true)
+	{
+		std::println("unable to dump ntoskrnl");
+
+		return 0;
+	}
+
+	portable_executable::image_t* ntoskrnl_image = reinterpret_cast<portable_executable::image_t*>(ntoskrnl_dump.data());
+
+	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address(ntoskrnl_image);
 
 	if (hook::kernel_detour_holder_base == 0)
 	{
@@ -84,7 +123,14 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
+	parse_ntoskrnl_exports(ntoskrnl_image);
+
 	return hook::set_up();
+}
+
+void sys::clean_up()
+{
+	hook::clean_up();
 }
 
 std::uint8_t sys::acquire_privilege()

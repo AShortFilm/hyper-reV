@@ -6,6 +6,7 @@
 namespace hook
 {
 	std::uint8_t set_up();
+	void clean_up();
 
 	std::uint8_t add_kernel_hook(std::uint64_t routine_to_hook_virtual, std::vector<std::uint8_t> extra_assembled_bytes);
 	std::uint8_t remove_kernel_hook(std::uint64_t hooked_routine_virtual);
