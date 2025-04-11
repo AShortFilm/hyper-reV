@@ -119,6 +119,7 @@ std::uint64_t memory_manager::operate_on_guest_virtual_memory(cr3 slat_cr3, void
 		}
 
 		void* guest_physical_mapped = reinterpret_cast<void*>(map_guest_physical(slat_cr3, guest_physical_address, &size_left_of_slat_page));
+		std::uint8_t* current_host_buffer = static_cast<std::uint8_t*>(host_buffer) + bytes_read;
 
 		std::uint64_t size_left_of_pages = crt::min(size_left_of_virtual_page, size_left_of_slat_page);
 
@@ -126,11 +127,11 @@ std::uint64_t memory_manager::operate_on_guest_virtual_memory(cr3 slat_cr3, void
 
 		if (operation == memory_operation_t::write_operation)
 		{
-			crt::copy_memory(guest_physical_mapped, host_buffer, copy_size);
+			crt::copy_memory(guest_physical_mapped, current_host_buffer, copy_size);
 		}
 		else
 		{
-			crt::copy_memory(host_buffer, guest_physical_mapped, copy_size);
+			crt::copy_memory(current_host_buffer, guest_physical_mapped, copy_size);
 		}
 
 		size_left_to_read -= copy_size;

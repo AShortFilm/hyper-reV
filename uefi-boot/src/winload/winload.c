@@ -19,11 +19,11 @@ CHAR8* bl_allocate_slab_pages = NULL;
 CHAR8* bl_mm_translate_virtual_address_ex = NULL;
 
 typedef UINT64(*bl_allocate_slab_pages_t)(UINT64* allocation_base_out, UINT64 pages_to_map, UINT64 a3, UINT64 a4);
-typedef UINT64(*bl_mm_translate_virtual_address_ex_t)(UINT64 virtual_address, UINT64* physical_address_out, UINT64 a3);
+typedef UINT64(*bl_mm_translate_virtual_address_ex_t)(UINT64 virtual_address, UINT64* physical_address_out, UINT64 a3, UINT64 a4);
 
 UINT64 winload_translate_virtual_address(UINT64* physical_address_out, UINT64 virtual_address)
 {
-    return ((bl_mm_translate_virtual_address_ex_t)(bl_mm_translate_virtual_address_ex))(virtual_address, physical_address_out, 0);
+    return ((bl_mm_translate_virtual_address_ex_t)(bl_mm_translate_virtual_address_ex))(virtual_address, physical_address_out, 0, 0);
 }
 
 UINT64 winload_allocate_slab_pages_virtual(UINT64* virtual_allocation_base_out, UINT64 pages_to_map)
@@ -72,7 +72,7 @@ UINT64 winload_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64*
 
         hyperv_attachment_allocate_and_copy();
 
-        hvloader_place_hooks(*image_base, (UINT64)*image_size);
+        hvloader_place_hooks(*image_base, *image_size);
 
         return return_value;
     }

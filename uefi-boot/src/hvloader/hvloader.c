@@ -6,29 +6,10 @@
 #include "../hyperv_attachment/hyperv_attachment.h"
 #include "../winload/winload.h"
 
-#include <IndustryStandard/PeImage.h>
-
 hook_data_t hvloader_launch_hv_hook_data = { 0 };
 hook_data_t hv_vmexit_hook_data = { 0 };
 
 typedef void(*hvloader_launch_hv_t)(cr3 a1, virtual_address_t a2, UINT64 a3, UINT64 a4);
-
-UINT64 get_hyperv_base(virtual_address_t entry_point)
-{
-    entry_point.offset = 0;
-
-    for (UINT64 hyperv_4kb_boundary = entry_point.address; hyperv_4kb_boundary != 0; hyperv_4kb_boundary -= 0x1000)
-    {
-        UINT16 header_magic = *(UINT16*)(hyperv_4kb_boundary);
-
-        if (header_magic == 0x5a4d)
-        {
-            return hyperv_4kb_boundary;
-        }
-    }
-
-    return 0;
-}
 
 void set_up_identity_map(pml4e_64* pml4e)
 {
@@ -76,54 +57,47 @@ void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
 {
     AsmWriteCr3(hyperv_cr3.flags);
 
-    UINT64 hyperv_base = get_hyperv_base(entry_point);
+    UINT64 hyperv_base = entry_point.address & ~(0x200000 - 1);
 
-    if (hyperv_base != 0)
+    UINT8* hyperv_attachment_entry_point = NULL;
+
+    EFI_STATUS status = hyperv_attachment_get_relocated_entry_point(&hyperv_attachment_entry_point);
+
+    if (status == EFI_SUCCESS)
     {
-        UINT8* hyperv_attachment_entry_point = NULL;
+        UINT64 size_of_image = 0x200000;
 
-        EFI_STATUS status = hyperv_attachment_get_relocated_entry_point(&hyperv_attachment_entry_point);
+        CHAR8* code_ref_to_vmexit_handler = NULL;
+
+        status = scan_image(&code_ref_to_vmexit_handler, (CHAR8*)hyperv_base, size_of_image, "\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x74", "x????x????x");
 
         if (status == EFI_SUCCESS)
         {
-            EFI_IMAGE_DOS_HEADER* dos_header = (EFI_IMAGE_DOS_HEADER*)hyperv_base;
+            INT32 original_vmexit_handler_rva = *(INT32*)(code_ref_to_vmexit_handler + 1);
+            CHAR8* original_vmexit_handler = (code_ref_to_vmexit_handler + 5) + original_vmexit_handler_rva;
 
-            EFI_IMAGE_NT_HEADERS64* nt_headers = (EFI_IMAGE_NT_HEADERS64*)(hyperv_base + dos_header->e_lfanew);
+            UINT8* hyperv_attachment_vmexit_handler_detour = NULL;
 
-            UINT64 size_of_image = (UINT64)nt_headers->OptionalHeader.SizeOfImage;
+            UINT64 heap_physical_base = hyperv_attachment_heap_physical_allocation;
+            UINT64 heap_size = hyperv_attachment_heap_4kb_pages_needed * 0x1000;
 
-            CHAR8* code_ref_to_vmexit_handler = NULL;
+            hyperv_attachment_invoke_entry_point(&hyperv_attachment_vmexit_handler_detour, hyperv_attachment_entry_point, original_vmexit_handler, heap_physical_base, heap_size);
 
-            status = scan_image(&code_ref_to_vmexit_handler, (CHAR8*)hyperv_base, size_of_image, "\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x74", "x????x????x");
+            CHAR8* code_cave = NULL;
+
+            status = scan_image(&code_cave, (CHAR8*)hyperv_base, size_of_image, "\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC", "xxxxxxxxxxxxxxxx");
 
             if (status == EFI_SUCCESS)
             {
-                INT32 original_vmexit_handler_rva = *(INT32*)(code_ref_to_vmexit_handler + 1);
-                CHAR8* original_vmexit_handler = (code_ref_to_vmexit_handler + 5) + original_vmexit_handler_rva;
-
-                UINT8* hyperv_attachment_vmexit_handler_detour = NULL;
-
-                UINT64 heap_physical_base = hyperv_attachment_heap_physical_allocation;
-                UINT64 heap_size = hyperv_attachment_heap_4kb_pages_needed * 0x1000;
-
-                hyperv_attachment_invoke_entry_point(&hyperv_attachment_vmexit_handler_detour, hyperv_attachment_entry_point, original_vmexit_handler, heap_physical_base, heap_size);
-
-                CHAR8* code_cave = NULL;
-
-                status = scan_image(&code_cave, (CHAR8*)hyperv_base, size_of_image, "\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC", "xxxxxxxxxxxxxxxx");
+                status = hook_create(&hv_vmexit_hook_data, code_cave, hyperv_attachment_vmexit_handler_detour);
 
                 if (status == EFI_SUCCESS)
                 {
-                    status = hook_create(&hv_vmexit_hook_data, code_cave, hyperv_attachment_vmexit_handler_detour);
+                    hook_enable(&hv_vmexit_hook_data);
 
-                    if (status == EFI_SUCCESS)
-                    {
-                        hook_enable(&hv_vmexit_hook_data);
+                    UINT32 new_call_rva = (UINT32)(code_cave - (code_ref_to_vmexit_handler + 5));
 
-                        UINT32 new_call_rva = (UINT32)(code_cave - (code_ref_to_vmexit_handler + 5));
-
-                        mm_copy_memory(code_ref_to_vmexit_handler + 1, (UINT8*)&new_call_rva, sizeof(new_call_rva));
-                    }
+                    mm_copy_memory(code_ref_to_vmexit_handler + 1, (UINT8*)&new_call_rva, sizeof(new_call_rva));
                 }
             }
         }

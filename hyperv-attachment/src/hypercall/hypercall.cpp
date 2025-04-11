@@ -205,7 +205,6 @@ void hypercall::process(trap_frame_t* trap_frame)
 
         break;
     }
-    case hypercall_type_t::null:
     default:
         break;
     }
