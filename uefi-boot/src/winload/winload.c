@@ -1,8 +1,10 @@
 #include "winload.h"
+
+#include <Library/UefiBootServicesTableLib.h>
+
 #include "../hooks/hooks.h"
 #include "../image/image.h"
 #include "../bootmgfw/bootmgfw.h"
-#include "../memory_manager/memory_manager.h"
 #include "../structures/ntdef.h"
 
 #include "../hyperv_attachment/hyperv_attachment.h"
@@ -20,6 +22,9 @@ CHAR8* bl_mm_translate_virtual_address_ex = NULL;
 
 typedef UINT64(*bl_allocate_slab_pages_t)(UINT64* allocation_base_out, UINT64 pages_to_map, UINT64 a3, UINT64 a4);
 typedef UINT64(*bl_mm_translate_virtual_address_ex_t)(UINT64 virtual_address, UINT64* physical_address_out, UINT64 a3, UINT64 a4);
+typedef EFI_ALLOCATE_PAGES efi_allocate_pages_t;
+
+efi_allocate_pages_t original_bs_allocate_pages = NULL;
 
 UINT64 winload_translate_virtual_address(UINT64* physical_address_out, UINT64 virtual_address)
 {
@@ -33,7 +38,33 @@ UINT64 winload_allocate_slab_pages_virtual(UINT64* virtual_allocation_base_out, 
         return EFI_INVALID_PARAMETER;
     }
 
-    return ((bl_allocate_slab_pages_t)(bl_allocate_slab_pages))(virtual_allocation_base_out, pages_to_map, 0, 0);
+    return ((bl_allocate_slab_pages_t)bl_allocate_slab_pages)(virtual_allocation_base_out, pages_to_map, 0, 0);
+}
+
+EFI_STATUS winload_bs_allocate_pages_detour(EFI_ALLOCATE_TYPE type, EFI_MEMORY_TYPE memory_type, UINT64 pages, EFI_PHYSICAL_ADDRESS* memory)
+{
+    EFI_MEMORY_TYPE new_memory_type = memory_type;
+
+    if (memory_type == EfiLoaderCode)
+    {
+        new_memory_type = EfiRuntimeServicesCode;
+    }
+    else if (memory_type == EfiLoaderData)
+    {
+        new_memory_type = EfiRuntimeServicesData;
+    }
+
+    return original_bs_allocate_pages(type, new_memory_type, pages, memory);
+}
+
+void winload_place_bs_allocate_pages_hook()
+{
+    gBS->AllocatePages = winload_bs_allocate_pages_detour;
+}
+
+void winload_remove_bs_allocate_pages_hook()
+{
+    gBS->AllocatePages = original_bs_allocate_pages;
 }
 
 UINT64 winload_allocate_slab_pages_physical(UINT64* physical_allocation_base_out, UINT64* virtual_allocation_base_out, UINT64 pages_to_map)
@@ -43,7 +74,13 @@ UINT64 winload_allocate_slab_pages_physical(UINT64* physical_allocation_base_out
         return EFI_INVALID_PARAMETER;
     }
 
+    original_bs_allocate_pages = gBS->AllocatePages;
+
+    winload_place_bs_allocate_pages_hook();
+
     UINT64 status = winload_allocate_slab_pages_virtual(virtual_allocation_base_out, pages_to_map);
+
+    winload_remove_bs_allocate_pages_hook();
 
     if (status == EFI_SUCCESS)
     {
