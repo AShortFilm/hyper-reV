@@ -2,6 +2,10 @@
 #include <ia32-doc/ia32.hpp>
 #include "../structures/virtual_address.h"
 
+#ifdef _INTELMACHINE
+extern "C" void invalidate_ept_mappings(invept_type type, const invept_descriptor& descriptor);
+#endif
+
 namespace slat
 {
 	void set_up();
@@ -16,7 +20,7 @@ namespace slat
 
 	class hook_entry_t
 	{
-	private:
+	protected:
 		std::uint64_t next : 48;
 		std::uint64_t original_read_access : 1;
 		std::uint64_t original_write_access : 1;

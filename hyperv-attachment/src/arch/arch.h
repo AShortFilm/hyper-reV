@@ -8,6 +8,9 @@ namespace arch
 	std::uint64_t get_vmexit_reason();
 	std::uint8_t is_cpuid(std::uint64_t vmexit_reason);
 	std::uint8_t is_slat_violation(std::uint64_t vmexit_reason);
+	std::uint8_t is_interrupt_exit(std::uint64_t vmexit_reason);
+
+	std::uint8_t is_exit_interrupt_non_maskable();
 
 	cr3 get_guest_cr3();
 

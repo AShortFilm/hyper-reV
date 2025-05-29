@@ -26,7 +26,7 @@ std::uint64_t memory_manager::map_guest_physical(cr3 slat_cr3, std::uint64_t gue
 
 std::uint64_t memory_manager::translate_guest_virtual_address(cr3 guest_cr3, cr3 slat_cr3, virtual_address_t guest_virtual_address, std::uint64_t* size_left_of_page)
 {
-	pml4e_64* pml4 = reinterpret_cast<pml4e_64*>(memory_manager::map_guest_physical(slat_cr3, guest_cr3.address_of_page_directory << 12));
+	pml4e_64* pml4 = reinterpret_cast<pml4e_64*>(map_guest_physical(slat_cr3, guest_cr3.address_of_page_directory << 12));
 
 	pml4e_64 pml4e = pml4[guest_virtual_address.pml4_idx];
 

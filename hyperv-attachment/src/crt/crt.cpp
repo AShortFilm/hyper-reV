@@ -13,7 +13,7 @@ crt::mutex_t::mutex_t() : value(0)
 
 void crt::mutex_t::lock()
 {
-	while (_InterlockedCompareExchange64(&this->value, 1, 0) == 1)
+	while (_InterlockedCompareExchange64(&this->value, 1, 0) != 0)
 	{
 		_mm_pause();
 	}
@@ -21,5 +21,5 @@ void crt::mutex_t::lock()
 
 void crt::mutex_t::release()
 {
-	this->value = 0;
+	_InterlockedExchange64(&this->value, 0);
 }

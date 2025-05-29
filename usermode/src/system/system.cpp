@@ -46,7 +46,7 @@ std::uint64_t find_kernel_detour_holder_base_address(portable_executable::image_
 	{
 		std::string_view current_section_name(current_section.name);
 
-		if (current_section_name == "INIT")
+		if (current_section_name.contains("Pad") == true && current_section.characteristics.mem_execute == 1)
 		{
 			return sys::ntoskrnl_base_address + current_section.virtual_address;
 		}

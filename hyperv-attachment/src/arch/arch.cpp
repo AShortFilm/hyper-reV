@@ -1,5 +1,7 @@
 #include "arch.h"
 
+#include "../memory_manager/memory_manager.h"
+
 #ifdef _INTELMACHINE
 #include <intrin.h>
 #include <ia32-doc/ia32.hpp>
@@ -49,12 +51,36 @@ std::uint8_t arch::is_slat_violation(std::uint64_t vmexit_reason)
 #endif
 }
 
+std::uint8_t arch::is_interrupt_exit(std::uint64_t vmexit_reason)
+{
+#ifdef _INTELMACHINE
+	return vmexit_reason == VMX_EXIT_REASON_EXCEPTION_OR_NMI;
+#else
+	return 0;
+#endif
+}
+
+std::uint8_t arch::is_exit_interrupt_non_maskable()
+{
+#ifdef _INTELMACHINE
+	std::uint64_t raw_interruption_information = 0;
+
+	__vmx_vmread(VMCS_VMEXIT_INTERRUPTION_INFORMATION, &raw_interruption_information);
+
+	vmexit_interrupt_information interrupt_information = { .flags = static_cast<std::uint32_t>(raw_interruption_information) };
+
+	return interrupt_information.interruption_type == interruption_type::non_maskable_interrupt;
+#else
+	return 0;
+#endif
+}
+
 cr3 arch::get_guest_cr3()
 {
 	cr3 guest_cr3 = { };
 
 #ifdef _INTELMACHINE
-	__vmx_vmread(VMCS_GUEST_CR3, (std::uint64_t*)&guest_cr3);
+	__vmx_vmread(VMCS_GUEST_CR3, &guest_cr3.flags);
 #else
 
 #endif
@@ -80,7 +106,7 @@ void arch::set_guest_rip(std::uint64_t guest_rip)
 #ifdef _INTELMACHINE
 	__vmx_vmwrite(VMCS_GUEST_RIP, guest_rip);
 #else
-	return 0;
+	
 #endif
 }
 
@@ -92,6 +118,6 @@ void arch::advance_guest_rip()
 
 	set_guest_rip(guest_rip + instruction_length);
 #else
-
+	
 #endif
 }

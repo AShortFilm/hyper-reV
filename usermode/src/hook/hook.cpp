@@ -37,6 +37,8 @@ std::uint8_t hook::set_up()
 	// in case of a previously wrongfully ended session which would've left the hook still applied
 	hypercall::remove_slat_code_hook(kernel_detour_holder_physical_page);
 
+	hypercall::read_guest_physical_memory(kernel_detour_holder_shadow_page_mapped, kernel_detour_holder_physical_page, 0x1000);
+
 	std::uint64_t hook_status = hypercall::add_slat_code_hook(kernel_detour_holder_physical_page, shadow_page_physical);
 
 	if (hook_status == 0)

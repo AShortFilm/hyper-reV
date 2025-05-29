@@ -119,20 +119,24 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;HYPERVATTACHMENT_EXPORTS;_WINDOWS;_USRDLL;_INTELMACHINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;HYPERVATTACHMENT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <ForcedIncludeFiles>$(ProjectDir)src\arch_config.h</ForcedIncludeFiles>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <ExceptionHandling>false</ExceptionHandling>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalOptions>/NODEFAULTLIB %(AdditionalOptions)</AdditionalOptions>
       <EntryPointSymbol>entry_point</EntryPointSymbol>
+      <AdditionalOptions>/NODEFAULTLIB %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -141,13 +145,17 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;HYPERVATTACHMENT_EXPORTS;_WINDOWS;_USRDLL;_INTELMACHINE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;HYPERVATTACHMENT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <ForcedIncludeFiles>$(ProjectDir)src\arch_config.h</ForcedIncludeFiles>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <ExceptionHandling>false</ExceptionHandling>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -155,14 +163,16 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalOptions>/NODEFAULTLIB %(AdditionalOptions)</AdditionalOptions>
       <EntryPointSymbol>entry_point</EntryPointSymbol>
+      <AdditionalOptions>/NODEFAULTLIB %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\apic\apic.cpp" />
     <ClCompile Include="src\arch\arch.cpp" />
     <ClCompile Include="src\crt\crt.cpp" />
     <ClCompile Include="src\hypercall\hypercall.cpp" />
+    <ClCompile Include="src\interrupts\interrupts.cpp" />
     <ClCompile Include="src\logs\logs.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\memory_manager\heap_manager.cpp" />
@@ -170,10 +180,15 @@
     <ClCompile Include="src\slat\slat.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\apic\apic.h" />
+    <ClInclude Include="src\apic\apic_def.h" />
+    <ClInclude Include="src\apic\apic_intrin.h" />
+    <ClInclude Include="src\arch_config.h" />
     <ClInclude Include="ext\ia32-doc\ia32.hpp" />
     <ClInclude Include="src\arch\arch.h" />
     <ClInclude Include="src\crt\crt.h" />
     <ClInclude Include="src\hypercall\hypercall.h" />
+    <ClInclude Include="src\interrupts\interrupts.h" />
     <ClInclude Include="src\logs\logs.h" />
     <ClInclude Include="src\memory_manager\heap_manager.h" />
     <ClInclude Include="src\memory_manager\memory_manager.h" />
@@ -181,6 +196,7 @@
     <ClInclude Include="src\structures\virtual_address.h" />
   </ItemGroup>
   <ItemGroup>
+    <MASM Include="src\interrupts\interrupt_entry.asm" />
     <MASM Include="src\slat\slat_intel.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

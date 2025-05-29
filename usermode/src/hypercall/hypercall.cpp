@@ -7,7 +7,8 @@ std::uint64_t make_hypercall(hypercall_type_t call_type, std::uint64_t call_rese
 {
 	hypercall_info_t hypercall_info = { };
 
-	hypercall_info.key = hypercall_key;
+	hypercall_info.primary_key = hypercall_primary_key;
+	hypercall_info.secondary_key = hypercall_secondary_key;
 	hypercall_info.call_type = call_type;
 	hypercall_info.call_reserved_data = call_reserved_data;
 

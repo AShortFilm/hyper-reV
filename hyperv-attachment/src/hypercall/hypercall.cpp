@@ -5,6 +5,7 @@
 #include "../arch/arch.h"
 #include "../logs/logs.h"
 #include "../crt/crt.h"
+#include "../interrupts/interrupts.h"
 
 std::uint64_t operate_on_guest_physical_memory(trap_frame_t* trap_frame, memory_operation_t operation)
 {
@@ -124,10 +125,8 @@ std::uint64_t flush_logs(trap_frame_t* trap_frame)
     return stored_logs_count;
 }
 
-void hypercall::process(trap_frame_t* trap_frame)
+void hypercall::process(hypercall_info_t hypercall_info, trap_frame_t* trap_frame)
 {
-    hypercall_info_t hypercall_info = { .value = trap_frame->rcx };
-
     switch (hypercall_info.call_type)
     {
     case hypercall_type_t::guest_physical_memory_operation:

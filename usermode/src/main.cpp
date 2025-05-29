@@ -31,7 +31,7 @@ std::int32_t main()
 
 		commands::process(command);
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+		std::this_thread::sleep_for(std::chrono::milliseconds(25));
 	}
 
 	sys::clean_up();

@@ -283,7 +283,8 @@ void process_akh(CLI::App* akh)
 
 		hypercall_info_t call_info = { };
 
-		call_info.key = hypercall_key;
+		call_info.primary_key = hypercall_primary_key;
+		call_info.secondary_key = hypercall_secondary_key;
 		call_info.call_type = hypercall_type_t::log_current_state;
 
 		*reinterpret_cast<std::uint32_t*>(&monitor_bytes[2]) = static_cast<std::uint32_t>(call_info.value);

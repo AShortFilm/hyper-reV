@@ -39,6 +39,12 @@
     <ClCompile Include="src\logs\logs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\apic\apic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\interrupts\interrupts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ext\ia32-doc\ia32.hpp">
@@ -68,9 +74,27 @@
     <ClInclude Include="src\logs\logs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\arch_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\apic\apic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\apic\apic_def.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\apic\apic_intrin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\interrupts\interrupts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="src\slat\slat_intel.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="src\interrupts\interrupt_entry.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

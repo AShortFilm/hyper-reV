@@ -4,7 +4,6 @@
 
 enum class hypercall_type_t : std::uint64_t
 {
-    null,
     guest_physical_memory_operation,
     guest_virtual_memory_operation,
     translate_guest_virtual_address,
@@ -18,7 +17,8 @@ enum class hypercall_type_t : std::uint64_t
 #pragma warning(push)
 #pragma warning(disable: 4201)
 
-constexpr std::uint64_t hypercall_key = 0x4E47;
+constexpr std::uint64_t hypercall_primary_key = 0x4E47;
+constexpr std::uint64_t hypercall_secondary_key = 0x7F;
 
 union hypercall_info_t
 {
@@ -26,9 +26,10 @@ union hypercall_info_t
 
     struct
     {
-        std::uint64_t key : 16;
-        hypercall_type_t call_type : 6;
-        std::uint64_t call_reserved_data : 42;
+        std::uint64_t primary_key : 16;
+        hypercall_type_t call_type : 4;
+        std::uint64_t secondary_key : 7;
+        std::uint64_t call_reserved_data : 37;
     };
 };
 
@@ -39,10 +40,10 @@ union virt_memory_op_hypercall_info_t
     struct
     {
         std::uint64_t key : 16;
-        hypercall_type_t call_type : 6;
+        hypercall_type_t call_type : 4;
+        std::uint64_t secondary_key : 7;
         memory_operation_t memory_operation : 1;
         std::uint64_t address_of_page_directory : 36; // we will construct the other cr3 (aside from the caller process) involved in the operation from this
-        std::uint64_t reserved : 5;
     };
 };
 

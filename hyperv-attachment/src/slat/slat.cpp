@@ -5,9 +5,9 @@
 #include <ia32-doc/ia32.hpp>
 #include <cstdint>
 
-#ifdef _INTELMACHINE
-extern "C" void invalidate_ept_mappings(invept_type type, invept_descriptor descriptor);
+#include "../interrupts/interrupts.h"
 
+#ifdef _INTELMACHINE
 #include <intrin.h>
 #endif
 
@@ -58,6 +58,15 @@ cr3 slat::get_cr3()
 }
 
 #ifdef _INTELMACHINE
+
+void do_all_logical_processors_invept()
+{
+	invalidate_ept_mappings(invept_type::invept_all_context, { });
+
+	interrupts::set_all_nmi_ready();
+	interrupts::send_nmi_all_but_self();
+}
+
 ept_pml4e* slat_get_pml4e(cr3 slat_cr3, virtual_address_t guest_physical_address)
 {
 	ept_pml4e* ept_pml4 = reinterpret_cast<ept_pml4e*>(memory_manager::map_host_physical(slat_cr3.address_of_page_directory << 12));
@@ -217,7 +226,7 @@ ept_pte* slat_get_pte(cr3 slat_cr3, virtual_address_t guest_physical_address, st
 		}
 	}
 
-	return slat_get_pte(pde, guest_physical_address);;
+	return slat_get_pte(pde, guest_physical_address);
 }
 
 std::uint64_t slat::add_slat_code_hook(cr3 slat_cr3, virtual_address_t target_guest_physical_address, virtual_address_t shadow_page_guest_physical_address)
@@ -275,7 +284,7 @@ std::uint64_t slat::add_slat_code_hook(cr3 slat_cr3, virtual_address_t target_gu
 
 	target_pte->execute_access = 0;
 
-	invalidate_ept_mappings(invept_type::invept_all_context, { });
+	do_all_logical_processors_invept();
 
 	hook_mutex.release();
 
@@ -333,7 +342,7 @@ std::uint64_t slat::remove_slat_code_hook(cr3 slat_cr3, virtual_address_t target
 
 	*target_pte = new_pte;
 
-	invalidate_ept_mappings(invept_type::invept_all_context, { });
+	do_all_logical_processors_invept();
 
 	hook_mutex.release();
 
@@ -350,23 +359,23 @@ std::uint8_t slat::process_slat_violation()
 
 	__vmx_vmread(VMCS_EXIT_QUALIFICATION, &qualification.flags);
 
-	if (qualification.caused_by_translation == 0)
+	if (qualification.execute_access == 1 && (qualification.write_access == 1 || qualification.read_access == 1))
 	{
 		return 0;
 	}
 
-	std::uint64_t physical_address = 0;
+	virtual_address_t physical_address = { };
 
-	__vmx_vmread(VMCS_GUEST_PHYSICAL_ADDRESS, &physical_address);
+	__vmx_vmread(qualification.caused_by_translation == 1 ? VMCS_GUEST_PHYSICAL_ADDRESS : VMCS_EXIT_GUEST_LINEAR_ADDRESS, &physical_address.address);
 
-	hook_entry_t* hook_entry = hook_entry_t::find(used_hook_list_head, physical_address >> 12);
+	hook_entry_t* hook_entry = hook_entry_t::find(used_hook_list_head, physical_address.address >> 12);
 
 	if (hook_entry == nullptr)
 	{
 		return 0;
 	}
 
-	ept_pte* pte = slat_get_pte(get_cr3(), { .address = physical_address });
+	ept_pte* pte = slat_get_pte(get_cr3(), physical_address);
 
 	if (pte == nullptr)
 	{
