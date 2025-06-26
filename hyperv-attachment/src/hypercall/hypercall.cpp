@@ -59,7 +59,7 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
 
     std::uint64_t size_left_to_read = trap_frame->r9;
 
-    std::uint64_t bytes_read = 0;
+    std::uint64_t bytes_copied = 0;
 
     while (size_left_to_read != 0)
     {
@@ -69,10 +69,10 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
         std::uint64_t size_left_of_source_virtual_page = 0;
         std::uint64_t size_left_of_source_slat_page = 0;
 
-        std::uint64_t guest_source_physical_address = memory_manager::translate_guest_virtual_address(guest_source_cr3, slat_cr3, { .address = guest_source_virtual_address + bytes_read }, &size_left_of_source_virtual_page);
-        std::uint64_t guest_destination_physical_address = memory_manager::translate_guest_virtual_address(guest_destination_cr3, slat_cr3, { .address = guest_destination_virtual_address + bytes_read }, &size_left_of_destination_virtual_page);
+        std::uint64_t guest_source_physical_address = memory_manager::translate_guest_virtual_address(guest_source_cr3, slat_cr3, { .address = guest_source_virtual_address + bytes_copied }, &size_left_of_source_virtual_page);
+        std::uint64_t guest_destination_physical_address = memory_manager::translate_guest_virtual_address(guest_destination_cr3, slat_cr3, { .address = guest_destination_virtual_address + bytes_copied }, &size_left_of_destination_virtual_page);
 
-        if (guest_source_physical_address == 0 || guest_destination_virtual_address == 0)
+        if (guest_source_physical_address == 0 || guest_destination_physical_address == 0)
         {
             break;
         }
@@ -95,10 +95,10 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
         crt::copy_memory(reinterpret_cast<void*>(host_destination), reinterpret_cast<const void*>(host_source), copy_size);
 
         size_left_to_read -= copy_size;
-        bytes_read += copy_size;
+        bytes_copied += copy_size;
     }
 
-    return bytes_read;
+    return bytes_copied;
 }
 
 void log_current_state(trap_frame_log_t trap_frame)

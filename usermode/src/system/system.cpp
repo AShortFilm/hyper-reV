@@ -1,5 +1,7 @@
 #include "system.h"
 
+#include <algorithm>
+
 #include "../hypercall/hypercall.h"
 #include "../hook/hook.h"
 
@@ -7,43 +9,50 @@
 
 #include <print>
 #include <vector>
-#include <array>
 #include <Windows.h>
 #include <winternl.h>
 #include <intrin.h>
 
 extern "C" NTSTATUS NTAPI RtlAdjustPrivilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread, std::uint8_t* previous_enabled_state);
 
-std::vector<std::uint8_t> dump_ntoskrnl()
+std::vector<std::uint8_t> dump_kernel_module(std::uint64_t module_base_address)
 {
 	constexpr std::uint64_t headers_size = 0x1000;
 
-	std::vector<std::uint8_t> buffer(headers_size);
+	std::vector<std::uint8_t> headers(headers_size);
 
-	std::uint64_t bytes_read = hypercall::read_guest_virtual_memory(buffer.data(), sys::ntoskrnl_base_address, sys::current_cr3, headers_size);
+	std::uint64_t bytes_read = hypercall::read_guest_virtual_memory(headers.data(), module_base_address, sys::current_cr3, headers_size);
 
 	if (bytes_read != headers_size)
 	{
 		return { };
 	}
 
-	const portable_executable::image_t* ntoskrnl_image = reinterpret_cast<portable_executable::image_t*>(buffer.data());
+	std::uint16_t magic = *reinterpret_cast<std::uint16_t*>(headers.data());
 
-	buffer.resize(ntoskrnl_image->nt_headers()->optional_header.size_of_image, 0);
-
-	const std::uint64_t target_size = buffer.size();
-
-	bytes_read = hypercall::read_guest_virtual_memory(buffer.data(), sys::ntoskrnl_base_address, sys::current_cr3, target_size);
-
-	if (bytes_read != target_size)
+	if (magic != 0x5a4d)
 	{
 		return { };
 	}
 
-	return buffer;
+	const portable_executable::image_t* image = reinterpret_cast<portable_executable::image_t*>(headers.data());
+
+	std::vector<std::uint8_t> image_buffer(image->nt_headers()->optional_header.size_of_image);
+
+	memcpy(image_buffer.data(), headers.data(), 0x1000);
+
+	for (const auto& current_section : image->sections())
+	{
+		std::uint64_t read_offset = current_section.virtual_address;
+		std::uint64_t read_size = current_section.virtual_size;
+
+		hypercall::read_guest_virtual_memory(image_buffer.data() + read_offset, module_base_address + read_offset, sys::current_cr3, read_size);
+	}
+
+	return image_buffer;
 }
 
-std::uint64_t find_kernel_detour_holder_base_address(portable_executable::image_t* ntoskrnl)
+std::uint64_t find_kernel_detour_holder_base_address(portable_executable::image_t* ntoskrnl, std::uint64_t ntoskrnl_base_address)
 {
 	for (const auto& current_section : ntoskrnl->sections())
 	{
@@ -51,23 +60,61 @@ std::uint64_t find_kernel_detour_holder_base_address(portable_executable::image_
 
 		if (current_section_name.contains("Pad") == true && current_section.characteristics.mem_execute == 1)
 		{
-			return sys::ntoskrnl_base_address + current_section.virtual_address;
+			return ntoskrnl_base_address + current_section.virtual_address;
 		}
 	}
 
 	return 0;
 }
 
-void parse_ntoskrnl_exports(portable_executable::image_t* ntoskrnl)
+std::unordered_map<std::string, std::uint64_t> parse_module_exports(const portable_executable::image_t* image, const std::string& module_name, const std::uint64_t module_base_address)
 {
-	for (const auto& current_export : ntoskrnl->exports())
+	std::unordered_map<std::string, std::uint64_t> exports = { };
+
+	for (const auto& current_export : image->exports())
 	{
-		std::string current_export_name = "nt!" + current_export.name;
+		std::string current_export_name = module_name + "!" + current_export.name;
 
-		std::uint64_t delta = reinterpret_cast<std::uint64_t>(current_export.address) - ntoskrnl->as<std::uint64_t>();
+		std::uint64_t delta = reinterpret_cast<std::uint64_t>(current_export.address) - image->as<std::uint64_t>();
 
-		sys::ntoskrnl_exports[current_export_name] = sys::ntoskrnl_base_address + delta;
+		exports[current_export_name] = module_base_address + delta;
 	}
+
+	return exports;
+}
+
+std::uint8_t parse_kernel_modules()
+{
+	auto loaded_modules = sys::kernel::get_loaded_modules();
+
+	if (loaded_modules.size() <= 1)
+	{
+		return 0;
+	}
+
+	for (const rtl_process_module_information_t& current_module : loaded_modules)
+	{
+		std::vector<std::uint8_t> module_dump = dump_kernel_module(current_module.image_base);
+
+		if (module_dump.empty() == true)
+		{
+			continue;
+		}
+
+		std::string module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
+
+		sys::kernel_module_t kernel_module = { };
+
+		portable_executable::image_t* image = reinterpret_cast<portable_executable::image_t*>(module_dump.data());
+
+		kernel_module.exports = parse_module_exports(image, module_name, current_module.image_base);
+		kernel_module.base_address = current_module.image_base;
+		kernel_module.size = current_module.image_size;
+
+		sys::kernel::modules_list[module_name] = kernel_module;
+	}
+
+	return 1;
 }
 
 std::uint8_t sys::set_up()
@@ -97,16 +144,16 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
-	ntoskrnl_base_address = ntoskrnl->image_base;
+	std::uint64_t ntoskrnl_base_address = ntoskrnl->image_base;
 
 	if (ntoskrnl_base_address == 0)
 	{
-		std::println("unable to read ntoskrnl's base address");
+		std::println("unable to find ntoskrn's base address");
 
 		return 0;
 	}
 
-	std::vector<std::uint8_t> ntoskrnl_dump = dump_ntoskrnl();
+	std::vector<std::uint8_t> ntoskrnl_dump = dump_kernel_module(ntoskrnl_base_address);
 
 	if (ntoskrnl_dump.empty() == true)
 	{
@@ -117,7 +164,7 @@ std::uint8_t sys::set_up()
 
 	portable_executable::image_t* ntoskrnl_image = reinterpret_cast<portable_executable::image_t*>(ntoskrnl_dump.data());
 
-	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address(ntoskrnl_image);
+	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address(ntoskrnl_image, ntoskrnl_base_address);
 
 	if (hook::kernel_detour_holder_base == 0)
 	{
@@ -126,7 +173,12 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
-	parse_ntoskrnl_exports(ntoskrnl_image);
+	if (parse_kernel_modules() == 0)
+	{
+		std::println("unable to parse kernel modules");
+
+		return 0;
+	}
 
 	if (hook::set_up() == 0)
 	{
@@ -154,7 +206,7 @@ std::uint8_t sys::acquire_privilege()
 	return NT_SUCCESS(status);
 }
 
-std::optional<rtl_process_module_information_t> sys::kernel::get_module_information(std::string_view target_module_name)
+std::vector<rtl_process_module_information_t> sys::kernel::get_loaded_modules()
 {
 	std::uint32_t size_of_information = 0;
 
@@ -176,10 +228,18 @@ std::optional<rtl_process_module_information_t> sys::kernel::get_module_informat
 
 	rtl_process_modules_t* process_modules = reinterpret_cast<rtl_process_modules_t*>(buffer.data());
 
-	for (std::uint64_t i = 0; i < process_modules->module_count; i++)
-	{
-		rtl_process_module_information_t current_module = process_modules->modules[i];
+	rtl_process_module_information_t* start = &process_modules->modules[0];
+	rtl_process_module_information_t* end = start + process_modules->module_count;
 
+	return { start, end };
+}
+
+std::optional<rtl_process_module_information_t> sys::kernel::get_module_information(std::string_view target_module_name)
+{
+	const std::vector<rtl_process_module_information_t> loaded_modules = get_loaded_modules();
+
+	for (const rtl_process_module_information_t& current_module : loaded_modules)
+	{
 		std::string_view current_module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
 
 		if (target_module_name == current_module_name)
@@ -188,7 +248,7 @@ std::optional<rtl_process_module_information_t> sys::kernel::get_module_informat
 		}
 	}
 
-	return { };
+	return std::nullopt;
 }
 
 std::uint32_t sys::user::query_system_information(std::int32_t information_class, void* information_out, std::uint32_t information_size, std::uint32_t* returned_size)
@@ -227,4 +287,17 @@ std::uint8_t sys::user::free_memory(void* address)
 	std::int32_t free_status = VirtualFree(address, 0, MEM_RELEASE);
 
 	return free_status != 0;
+}
+
+std::string sys::user::to_string(const std::wstring& wstring)
+{
+	std::string converted_string = { };
+
+	std::ranges::transform(wstring,
+		std::back_inserter(converted_string), [](wchar_t character)
+		{
+			return static_cast<char>(character);
+		});
+
+	return converted_string;
 }

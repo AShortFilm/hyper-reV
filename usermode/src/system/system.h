@@ -6,6 +6,8 @@
 
 namespace sys
 {
+	struct kernel_module_t;
+
 	std::uint8_t set_up();
 	void clean_up();
 
@@ -13,7 +15,10 @@ namespace sys
 
 	namespace kernel
 	{
+		std::vector<rtl_process_module_information_t> get_loaded_modules();
 		std::optional<rtl_process_module_information_t> get_module_information(std::string_view target_module_name);
+
+		inline std::unordered_map<std::string, kernel_module_t> modules_list = { };
 	}
 
 	namespace user
@@ -22,10 +27,17 @@ namespace sys
 		std::uint32_t adjust_privilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread_only, std::uint8_t* previous_enabled_state);
 		void* allocate_locked_memory(std::uint64_t size, std::uint32_t protection);
 		std::uint8_t free_memory(void* address);
+
+		std::string to_string(const std::wstring& wstring);
 	}
 
-	inline std::unordered_map<std::string, std::uint64_t> ntoskrnl_exports = { };
+	struct kernel_module_t
+	{
+		std::unordered_map<std::string, std::uint64_t> exports;
+		
+		std::uint64_t base_address;
+		std::uint32_t size;
+	};
 
-	inline std::uint64_t ntoskrnl_base_address = 0;
 	inline std::uint64_t current_cr3 = 0;
 }

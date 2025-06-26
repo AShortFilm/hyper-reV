@@ -411,6 +411,62 @@ void process_hfpc(CLI::App* hfpc)
 	std::println("heap free page count: {}", heap_free_page_count);
 }
 
+CLI::App* init_lkm(CLI::App& app)
+{
+	CLI::App* lkm = app.add_subcommand("lkm", "print cached list of loaded kernel modules")->ignore_case();
+
+	return lkm;
+}
+
+void process_lkm(CLI::App* lkm)
+{
+	for (const auto& [module_name, module_info] : sys::kernel::modules_list)
+	{
+		std::println("'{}' has a base address of: 0x{:x}, and a size of: 0x{:X}", module_name, module_info.base_address, module_info.size);
+	}
+}
+
+CLI::App* init_kme(CLI::App& app)
+{
+	CLI::App* kme = app.add_subcommand("kme", "list the exports of a loaded kernel module (given the name)")->ignore_case();
+
+	add_command_option(kme, "module_name")->required();
+
+	return kme;
+}
+
+void process_kme(CLI::App* kme)
+{
+	std::string module_name = get_command_option<std::string>(kme, "module_name");
+
+	if (sys::kernel::modules_list.contains(module_name) == false)
+	{
+		std::println("module not found");
+
+		return;
+	}
+
+	sys::kernel_module_t module = sys::kernel::modules_list[module_name];
+
+	for (auto& [export_name, export_address] : module.exports)
+	{
+		std::println("{} = 0x{:X}", export_name, export_address);
+	}
+}
+
+std::unordered_map<std::string, std::uint64_t> form_aliases()
+{
+	std::unordered_map<std::string, std::uint64_t> aliases = { { "current_cr3", sys::current_cr3 } };
+
+	for (auto& [module_name, module_info] : sys::kernel::modules_list)
+	{
+		aliases.insert({ module_name, module_info.base_address });
+		aliases.insert(module_info.exports.begin(), module_info.exports.end());
+	}
+
+	return aliases;
+}
+
 void commands::process(std::string command)
 {
 	if (command.empty() == true)
@@ -421,9 +477,7 @@ void commands::process(std::string command)
 	CLI::App app;
 	app.require_subcommand();
 
-	std::unordered_map<std::string, std::uint64_t> aliases = { { "nt", sys::ntoskrnl_base_address }, { "current_cr3", sys::current_cr3 } };
-
-	aliases.insert(sys::ntoskrnl_exports.begin(), sys::ntoskrnl_exports.end());
+	std::unordered_map<std::string, std::uint64_t> aliases = form_aliases();
 
 	CLI::Transformer aliases_transformer = CLI::Transformer(aliases, CLI::ignore_case);
 
@@ -441,6 +495,8 @@ void commands::process(std::string command)
 	CLI::App* hgpp = init_hgpp(app, aliases_transformer);
 	CLI::App* fl = init_fl(app);
 	CLI::App* hfpc = init_hfpc(app);
+	CLI::App* lkm = init_lkm(app);
+	CLI::App* kme = init_kme(app);
 
 	try
 	{
@@ -458,6 +514,8 @@ void commands::process(std::string command)
 		d_process_command(hgpp);
 		d_process_command(fl);
 		d_process_command(hfpc);
+		d_process_command(lkm);
+		d_process_command(kme);
 	}
 	catch (const CLI::ParseError& error)
 	{

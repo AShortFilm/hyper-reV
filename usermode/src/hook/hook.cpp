@@ -58,7 +58,10 @@ void hook::clean_up()
 		remove_kernel_hook(virtual_address);
 	}
 
-	hypercall::remove_slat_code_hook(kernel_detour_holder_physical_page);
+	if (kernel_detour_holder_physical_page != 0)
+	{
+		hypercall::remove_slat_code_hook(kernel_detour_holder_physical_page);
+	}
 }
 
 union parted_address_t
@@ -243,18 +246,14 @@ std::uint8_t hook::add_kernel_hook(std::uint64_t routine_to_hook_virtual, std::v
 
 std::uint8_t hook::remove_kernel_hook(std::uint64_t hooked_routine_virtual)
 {
-	const auto entry = kernel_hook_list.find(hooked_routine_virtual);
-
-	if (entry == kernel_hook_list.end())
+	if (kernel_hook_list.contains(hooked_routine_virtual) == false)
 	{
 		std::println("unable to find kernel hook");
 
 		return 0;
 	}
 
-	kernel_hook_info_t hook_info = entry->second;
-
-	kernel_hook_list.erase(entry);
+	kernel_hook_info_t hook_info = kernel_hook_list[hooked_routine_virtual];
 
 	if (hypercall::remove_slat_code_hook(hook_info.original_page_physical_address) == 0)
 	{
@@ -262,6 +261,8 @@ std::uint8_t hook::remove_kernel_hook(std::uint64_t hooked_routine_virtual)
 
 		return 0;
 	}
+
+	kernel_hook_list.erase(hooked_routine_virtual);
 
 	void* detour_holder_allocation = kernel_detour_holder::get_allocation_from_offset(hook_info.detour_holder_shadow_offset);
 

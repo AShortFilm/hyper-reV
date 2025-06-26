@@ -41,7 +41,7 @@ union virt_memory_op_hypercall_info_t
 
     struct
     {
-        std::uint64_t key : 16;
+        std::uint64_t primary_key : 16;
         hypercall_type_t call_type : 4;
         std::uint64_t secondary_key : 7;
         memory_operation_t memory_operation : 1;
