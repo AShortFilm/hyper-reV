@@ -11,9 +11,7 @@
 #include "../hvloader/hvloader.h"
 
 UINT64 pml4_physical_allocation = 0;
-UINT64 pml4_virtual_allocation = 0;
-UINT64 pdpt_physical_identity_map_allocation = 0;
-UINT64 pdpt_virtual_identity_map_allocation = 0;
+UINT64 pdpt_physical_allocation = 0;
 
 hook_data_t winload_load_pe_image_hook_data = { 0 };
 
@@ -100,15 +98,6 @@ UINT64 winload_load_pe_image_detour(bl_file_info_t* file_info, INT32 a2, UINT64*
 
     if (StrStr(file_info->file_name, L"hvloader") != NULL)
     {
-        winload_allocate_slab_pages_physical(&pml4_physical_allocation, &pml4_virtual_allocation, 1);
-        winload_allocate_slab_pages_physical(&pdpt_physical_identity_map_allocation, &pdpt_virtual_identity_map_allocation, 1);
-
-        UINT64 heap_allocation_virtual = 0;
-
-        winload_allocate_slab_pages_physical(&hyperv_attachment_heap_physical_allocation, &heap_allocation_virtual, hyperv_attachment_heap_4kb_pages_needed);
-
-        hyperv_attachment_allocate_and_copy();
-
         hvloader_place_hooks(*image_base, *image_size);
 
         return return_value;

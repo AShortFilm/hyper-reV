@@ -139,7 +139,7 @@ EFI_STATUS disk_get_specified_type_file_info(void** buffer_out, UINT64* buffer_s
 
     status = file_handle->GetInfo(file_handle, information_type, buffer_size_out, *buffer_out);
 
-    return EFI_SUCCESS;
+    return status;
 }
 
 EFI_STATUS disk_get_generic_file_info(EFI_FILE_INFO** file_info_out, UINT64* file_info_size_out, EFI_FILE_PROTOCOL* file_handle)

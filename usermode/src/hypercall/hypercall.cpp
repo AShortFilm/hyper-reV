@@ -95,9 +95,23 @@ std::uint64_t hypercall::remove_slat_code_hook(std::uint64_t target_guest_physic
 	return make_hypercall(call_type, 0, target_guest_physical_address, 0, 0);
 }
 
+std::uint64_t hypercall::hide_guest_physical_page(std::uint64_t target_guest_physical_address)
+{
+	hypercall_type_t call_type = hypercall_type_t::hide_guest_physical_page;
+
+	return make_hypercall(call_type, 0, target_guest_physical_address, 0, 0);
+}
+
 std::uint64_t hypercall::flush_logs(std::vector<trap_frame_log_t>& logs)
 {
 	hypercall_type_t call_type = hypercall_type_t::flush_logs;
 
 	return make_hypercall(call_type, 0, reinterpret_cast<std::uint64_t>(logs.data()), logs.size(), 0);
+}
+
+std::uint64_t hypercall::get_heap_free_page_count()
+{
+	hypercall_type_t call_type = hypercall_type_t::get_heap_free_page_count;
+
+	return make_hypercall(call_type, 0, 0, 0, 0);
 }

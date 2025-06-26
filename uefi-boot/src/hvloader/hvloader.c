@@ -1,4 +1,6 @@
 #include "hvloader.h"
+
+#include "../bootmgfw/bootmgfw.h"
 #include "../hooks/hooks.h"
 #include "../image/image.h"
 #include "../structures/virtual_address.h"
@@ -13,10 +15,10 @@ typedef void(*hvloader_launch_hv_t)(cr3 a1, virtual_address_t a2, UINT64 a3, UIN
 
 void set_up_identity_map(pml4e_64* pml4e)
 {
-    pdpte_1gb_64* pdpt = (pdpte_1gb_64*)pdpt_virtual_identity_map_allocation;
+    pdpte_1gb_64* pdpt = (pdpte_1gb_64*)pdpt_physical_allocation;
 
     pml4e->flags = 0;
-    pml4e->page_frame_number = (UINT64)pdpt_physical_identity_map_allocation >> 12;
+    pml4e->page_frame_number = pdpt_physical_allocation >> 12;
     pml4e->present = 1;
     pml4e->write = 1;
 
@@ -69,7 +71,16 @@ void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
 
         CHAR8* code_ref_to_vmexit_handler = NULL;
 
+        UINT8 is_intel = 1;
+
         status = scan_image(&code_ref_to_vmexit_handler, (CHAR8*)hyperv_base, size_of_image, "\xE8\x00\x00\x00\x00\xE9\x00\x00\x00\x00\x74", "x????x????x");
+
+        if (status == EFI_NOT_FOUND)
+        {
+            status = scan_image(&code_ref_to_vmexit_handler, (CHAR8*)hyperv_base, size_of_image, "\xE8\x00\x00\x00\x00\x48\x89\x04\x24\xE9", "x????xxxxx");
+
+            is_intel = 0;
+        }
 
         if (status == EFI_SUCCESS)
         {
@@ -78,10 +89,23 @@ void set_up_hyperv_hooks(cr3 hyperv_cr3, virtual_address_t entry_point)
 
             UINT8* hyperv_attachment_vmexit_handler_detour = NULL;
 
-            UINT64 heap_physical_base = hyperv_attachment_heap_physical_allocation;
-            UINT64 heap_size = hyperv_attachment_heap_4kb_pages_needed * 0x1000;
+            CHAR8* get_vmcb_gadget = NULL;
 
-            hyperv_attachment_invoke_entry_point(&hyperv_attachment_vmexit_handler_detour, hyperv_attachment_entry_point, original_vmexit_handler, heap_physical_base, heap_size);
+            if (is_intel == 0)
+            {
+                status = scan_image(&get_vmcb_gadget, (CHAR8*)hyperv_base, size_of_image, "\x65\x48\x8B\x04\x25\x00\x00\x00\x00\x48\x8B\x88\x00\x00\x00\x00\x48\x8B\x81\x00\x00\x00\x00\x48\x8B", "xxxxx????xxx????xxx????xx");
+
+                if (status != EFI_SUCCESS)
+                {
+                    return;
+                }
+            }
+
+            UINT64 heap_physical_base = hyperv_attachment_heap_allocation_base;
+            UINT64 heap_physical_usable_base = hyperv_attachment_heap_allocation_usable_base;
+            UINT64 heap_total_size = hyperv_attachment_heap_allocation_size;
+
+            hyperv_attachment_invoke_entry_point(&hyperv_attachment_vmexit_handler_detour, hyperv_attachment_entry_point, original_vmexit_handler, heap_physical_base, heap_physical_usable_base, heap_total_size, uefi_boot_physical_base_address, uefi_boot_image_size, get_vmcb_gadget);
 
             CHAR8* code_cave = NULL;
 
@@ -108,7 +132,7 @@ void hvloader_launch_hv_detour(cr3 hyperv_cr3, virtual_address_t hyperv_entry_po
 {
     hook_disable(&hvloader_launch_hv_hook_data);
 
-    pml4e_64* virtual_pml4 = (pml4e_64*)pml4_virtual_allocation;
+    pml4e_64* virtual_pml4 = (pml4e_64*)pml4_physical_allocation;
 
     set_up_identity_map(&virtual_pml4[0]);
 

@@ -1,4 +1,5 @@
 #include "system.h"
+
 #include "../hypercall/hypercall.h"
 #include "../hook/hook.h"
 
@@ -6,8 +7,10 @@
 
 #include <print>
 #include <vector>
+#include <array>
 #include <Windows.h>
 #include <winternl.h>
+#include <intrin.h>
 
 extern "C" NTSTATUS NTAPI RtlAdjustPrivilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread, std::uint8_t* previous_enabled_state);
 
@@ -125,7 +128,14 @@ std::uint8_t sys::set_up()
 
 	parse_ntoskrnl_exports(ntoskrnl_image);
 
-	return hook::set_up();
+	if (hook::set_up() == 0)
+	{
+		std::println("unable to set up kernel hook helper");
+
+		return 0;
+	}
+
+	return 1;
 }
 
 void sys::clean_up()

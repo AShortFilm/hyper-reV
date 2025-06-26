@@ -27,7 +27,7 @@ void* kernel_detour_holder::allocate_memory(const std::uint16_t size)
 				return ++entry;
 			}
 
-			if (size < entry->size)
+			if (size + sizeof(detour_entry_t) < entry->size)
 			{
 				if (best_split == nullptr || entry->size < best_split->size)
 				{

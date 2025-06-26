@@ -6,7 +6,10 @@
 
 #include "commands/commands.h"
 #include "hook/hook.h"
+#include "hypercall/hypercall.h"
 #include "system/system.h"
+
+extern "C" std::uint64_t launch_raw_hypercall(std::uint64_t rcx, std::uint64_t rdx, std::uint64_t r8, std::uint64_t r9);
 
 std::int32_t main()
 {
@@ -28,7 +31,7 @@ std::int32_t main()
 		{
 			break;
 		}
-
+			
 		commands::process(command);
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(25));

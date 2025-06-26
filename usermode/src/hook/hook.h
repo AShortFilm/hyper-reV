@@ -21,7 +21,7 @@ namespace hook
 			std::uint16_t detour_holder_shadow_offset : 16;
 		};
 
-		void* get_mapped_shadow_page()
+		void* get_mapped_shadow_page() const
 		{
 			return reinterpret_cast<void*>(this->mapped_shadow_page);
 		}

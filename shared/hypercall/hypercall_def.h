@@ -10,8 +10,10 @@ enum class hypercall_type_t : std::uint64_t
     read_guest_cr3,
     add_slat_code_hook,
     remove_slat_code_hook,
+    hide_guest_physical_page,
     log_current_state,
-    flush_logs
+    flush_logs,
+    get_heap_free_page_count
 };
 
 #pragma warning(push)

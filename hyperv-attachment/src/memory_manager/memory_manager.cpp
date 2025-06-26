@@ -100,6 +100,82 @@ std::uint64_t memory_manager::translate_guest_virtual_address(cr3 guest_cr3, cr3
 	return (pte.page_frame_number << 12) + page_offset;
 }
 
+std::uint64_t memory_manager::translate_host_virtual_address(cr3 host_cr3, virtual_address_t host_virtual_address, std::uint64_t* size_left_of_page)
+{
+	pml4e_64* pml4 = reinterpret_cast<pml4e_64*>(map_host_physical(host_cr3.address_of_page_directory << 12));
+
+	pml4e_64 pml4e = pml4[host_virtual_address.pml4_idx];
+
+	if (pml4e.present == 0)
+	{
+		return 0;
+	}
+
+	pdpte_64* pdpt = reinterpret_cast<pdpte_64*>(map_host_physical(pml4e.page_frame_number << 12));
+
+	pdpte_64 pdpte = pdpt[host_virtual_address.pdpt_idx];
+
+	if (pdpte.present == 0)
+	{
+		return 0;
+	}
+
+	if (pdpte.large_page == 1)
+	{
+		pdpte_1gb_64 large_pdpte = { .flags = pdpte.flags };
+
+		const std::uint64_t page_offset = (host_virtual_address.pd_idx << 21) + (host_virtual_address.pt_idx << 12) + host_virtual_address.offset;
+
+		if (size_left_of_page != nullptr)
+		{
+			*size_left_of_page = (1ull << 30) - page_offset;
+		}
+
+		return (large_pdpte.page_frame_number << 30) + page_offset;
+	}
+
+	pde_64* pd = reinterpret_cast<pde_64*>(map_host_physical(pdpte.page_frame_number << 12));
+
+	pde_64 pde = pd[host_virtual_address.pd_idx];
+
+	if (pde.present == 0)
+	{
+		return 0;
+	}
+
+	if (pde.large_page == 1)
+	{
+		pde_2mb_64 large_pde = { .flags = pde.flags };
+
+		const std::uint64_t page_offset = (host_virtual_address.pt_idx << 12) + host_virtual_address.offset;
+
+		if (size_left_of_page != nullptr)
+		{
+			*size_left_of_page = (1ull << 21) - page_offset;
+		}
+
+		return (large_pde.page_frame_number << 21) + page_offset;
+	}
+
+	pte_64* pt = reinterpret_cast<pte_64*>(map_host_physical(pde.page_frame_number << 12));
+
+	pte_64 pte = pt[host_virtual_address.pt_idx];
+
+	if (pte.present == 0)
+	{
+		return 0;
+	}
+
+	const std::uint64_t page_offset = host_virtual_address.offset;
+
+	if (size_left_of_page != nullptr)
+	{
+		*size_left_of_page = (1ull << 12) - page_offset;
+	}
+
+	return (pte.page_frame_number << 12) + page_offset;
+}
+
 std::uint64_t memory_manager::operate_on_guest_virtual_memory(cr3 slat_cr3, void* host_buffer, std::uint64_t guest_virtual_address, cr3 guest_cr3, std::uint64_t total_size, memory_operation_t operation)
 {
 	std::uint64_t size_left_to_read = total_size;

@@ -1,10 +1,14 @@
 #include "bootmgfw.h"
+
 #include "../winload/winload.h"
 #include "../memory_manager/memory_manager.h"
 #include "../hooks/hooks.h"
 #include "../image/image.h"
 #include "../disk/disk.h"
 #include "../structures/ntdef.h"
+
+UINT64 uefi_boot_physical_base_address = 0;
+UINT32 uefi_boot_image_size = 0;
 
 #define d_bootmgfw_path L"\\efi\\microsoft\\boot\\bootmgfw.efi"
 #define d_path_original_bootmgfw L"\\efi\\microsoft\\boot\\bootmgfw.original.efi"
@@ -155,34 +159,56 @@ EFI_STATUS bootmgfw_place_hooks(EFI_HANDLE bootmgfw_image_handle)
     return bootmgfw_place_load_pe_image_hook(bootmgfw_image_info);
 }
 
+EFI_STATUS parse_uefi_boot_image_info(EFI_HANDLE image_handle)
+{
+    EFI_LOADED_IMAGE* image_info = NULL;
+
+    EFI_STATUS status = get_image_info(&image_info, image_handle);
+
+    if (status != EFI_SUCCESS)
+    {
+        return status;
+    }
+
+    uefi_boot_physical_base_address = (UINT64)image_info->ImageBase;
+    uefi_boot_image_size = (UINT32)image_info->ImageSize;
+
+    return EFI_SUCCESS;
+}
+
 EFI_STATUS bootmgfw_run_original_image(EFI_HANDLE parent_image_handle, EFI_HANDLE device_handle)
 {
-    EFI_DEVICE_PATH* device_path = NULL;
-
-    EFI_STATUS status = disk_get_device_path(&device_path, device_handle, d_bootmgfw_path);
+    EFI_STATUS status = parse_uefi_boot_image_info(parent_image_handle);
 
     if (status == EFI_SUCCESS)
     {
-        EFI_HANDLE loaded_image = NULL;
+        EFI_DEVICE_PATH* device_path = NULL;
 
-        status = load_image(&loaded_image, TRUE, parent_image_handle, device_path);
+		status = disk_get_device_path(&device_path, device_handle, d_bootmgfw_path);
 
         if (status == EFI_SUCCESS)
         {
-            status = bootmgfw_place_hooks(loaded_image);
+            EFI_HANDLE loaded_image = NULL;
+
+            status = load_image(&loaded_image, TRUE, parent_image_handle, device_path);
 
             if (status == EFI_SUCCESS)
             {
-                status = start_image(loaded_image);
+                status = bootmgfw_place_hooks(loaded_image);
+
+                if (status == EFI_SUCCESS)
+                {
+                    status = start_image(loaded_image);
+                }
+                else
+                {
+                    unload_image(loaded_image);
+                }
             }
             else
             {
                 unload_image(loaded_image);
             }
-        }
-        else
-        {
-            unload_image(loaded_image);
         }
     }
 

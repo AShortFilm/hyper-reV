@@ -62,7 +62,9 @@ void interrupts::set_up()
 {
 	apic = apic_t::create_instance();
 
+#ifdef _INTELMACHINE
     set_up_nmi_handling();
+#endif
 }
 
 void interrupts::set_all_nmi_ready()
@@ -110,7 +112,7 @@ void interrupts::process_nmi()
 
 	if (is_nmi_ready(current_apic_id) == 1)
     {
-        invalidate_ept_mappings(invept_type::invept_all_context, { });
+        slat::flush_current_logical_processor_slat_cache();
 
         clear_nmi_ready(current_apic_id);
     }

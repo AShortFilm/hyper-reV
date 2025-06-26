@@ -183,6 +183,7 @@
     <ClInclude Include="src\apic\apic.h" />
     <ClInclude Include="src\apic\apic_def.h" />
     <ClInclude Include="src\apic\apic_intrin.h" />
+    <ClInclude Include="src\arch\amd_def.h" />
     <ClInclude Include="src\arch_config.h" />
     <ClInclude Include="ext\ia32-doc\ia32.hpp" />
     <ClInclude Include="src\arch\arch.h" />

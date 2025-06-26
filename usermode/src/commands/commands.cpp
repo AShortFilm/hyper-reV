@@ -256,7 +256,7 @@ void process_cgvm(CLI::App* wgvm)
 
 CLI::App* init_akh(CLI::App& app, CLI::Transformer& aliases_transformer)
 {
-	CLI::App* akh = app.add_subcommand("akh", "add a hook on specified kernel code (given the guest virtual address) (asmbytes in form: 0xE8 0x12 0x23 0x34 0x45")->ignore_case();
+	CLI::App* akh = app.add_subcommand("akh", "add a hook on specified kernel code (given the guest virtual address) (asmbytes in form: 0xE8 0x12 0x23 0x34 0x45)")->ignore_case();
 
 	add_transformed_command_option(akh, "virtual_address", aliases_transformer)->required();
 	add_command_option(akh, "--asmbytes")->multi_option_policy(CLI::MultiOptionPolicy::TakeAll)->expected(-1);
@@ -329,6 +329,31 @@ void process_rkh(CLI::App* rkh)
 	}
 }
 
+CLI::App* init_hgpp(CLI::App& app, CLI::Transformer& aliases_transformer)
+{
+	CLI::App* hgpp = app.add_subcommand("hgpp", "hide a physical page's real contents from the guest")->ignore_case();
+
+	add_transformed_command_option(hgpp, "physical_address", aliases_transformer)->required();
+
+	return hgpp;
+}
+
+void process_hgpp(CLI::App* hgpp)
+{
+	std::uint64_t physical_address = get_command_option<std::uint64_t>(hgpp, "physical_address");
+
+	std::uint64_t hide_status = hypercall::hide_guest_physical_page(physical_address);
+
+	if (hide_status == 1)
+	{
+		std::println("success in hiding page");
+	}
+	else
+	{
+		std::println("failed to hide page");
+	}
+}
+
 CLI::App* init_fl(CLI::App& app)
 {
 	CLI::App* fl = app.add_subcommand("fl", "flush trap frame logs from hooks")->ignore_case();
@@ -339,12 +364,21 @@ CLI::App* init_fl(CLI::App& app)
 void process_fl(CLI::App* fl)
 {
 	constexpr std::uint64_t log_count = 32;
+	constexpr std::uint64_t failed_log_count = -1;
 
 	std::vector<trap_frame_log_t> logs(log_count);
 
 	std::uint64_t logs_flushed = hypercall::flush_logs(logs);
 
-	if (logs_flushed != 0)
+	if (logs_flushed == failed_log_count)
+	{
+		std::println("failed to flush logs");
+	}
+	else if (logs_flushed == 0)
+	{
+		std::println("there are no logs to flush");
+	}
+	else
 	{
 		std::println("success in flushing logs ({}), outputting logs now:\n\n", logs_flushed);
 
@@ -361,10 +395,20 @@ void process_fl(CLI::App* fl)
 				,i, log.rip, log.rax, log.rcx, log.rdx, log.rbx, log.rsp, log.rbp, log.rsi, log.rdi, log.r8, log.r9, log.r10, log.r11, log.r12, log.r13, log.r14, log.r15);
 		}
 	}
-	else
-	{
-		std::println("failed to flush logs");
-	}
+}
+
+CLI::App* init_hfpc(CLI::App& app)
+{
+	CLI::App* hfpc = app.add_subcommand("hfpc", "get hyperv-attachment's heap free page count")->ignore_case();
+
+	return hfpc;
+}
+
+void process_hfpc(CLI::App* hfpc)
+{
+	std::uint64_t heap_free_page_count = hypercall::get_heap_free_page_count();
+
+	std::println("heap free page count: {}", heap_free_page_count);
 }
 
 void commands::process(std::string command)
@@ -394,7 +438,9 @@ void commands::process(std::string command)
 	CLI::App* cgvm = init_cgvm(app, aliases_transformer);
 	CLI::App* akh = init_akh(app, aliases_transformer);
 	CLI::App* rkh = init_rkh(app, aliases_transformer);
+	CLI::App* hgpp = init_hgpp(app, aliases_transformer);
 	CLI::App* fl = init_fl(app);
+	CLI::App* hfpc = init_hfpc(app);
 
 	try
 	{
@@ -409,7 +455,9 @@ void commands::process(std::string command)
 		d_process_command(cgvm);
 		d_process_command(akh);
 		d_process_command(rkh);
+		d_process_command(hgpp);
 		d_process_command(fl);
+		d_process_command(hfpc);
 	}
 	catch (const CLI::ParseError& error)
 	{

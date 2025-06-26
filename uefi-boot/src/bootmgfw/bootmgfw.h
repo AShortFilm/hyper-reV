@@ -1,6 +1,10 @@
 #pragma once
 #include <Library/UefiLib.h>
 
+// this image's info - will be zeroed by the hyperv-attachment
+extern UINT64 uefi_boot_physical_base_address;
+extern UINT32 uefi_boot_image_size;
+
 typedef UINT64 unknown_param_t;
 typedef UINT64(*boot_load_pe_image_t)(void* file_info, INT32 a2, UINT64* image_base, UINT32* image_size, UINT64* a5, UINT32* a6, UINT32* a7, UINT64 a8, UINT64 a9, unknown_param_t a10, unknown_param_t a11, unknown_param_t a12, unknown_param_t a13, unknown_param_t a14, unknown_param_t a15);
 

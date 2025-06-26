@@ -57,6 +57,8 @@ void hook::clean_up()
 	{
 		remove_kernel_hook(virtual_address);
 	}
+
+	hypercall::remove_slat_code_hook(kernel_detour_holder_physical_page);
 }
 
 union parted_address_t
@@ -70,12 +72,28 @@ union parted_address_t
 	std::uint64_t value;
 };
 
-std::vector<std::uint8_t> get_routine_aligned_bytes(std::uint8_t* routine, std::uint64_t minimum_size)
+ZydisDecoder make_zydis_decoder()
 {
 	ZydisDecoder decoder = { };
 
 	ZydisDecoderInit(&decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
 	ZydisDecoderEnableMode(&decoder, ZYDIS_DECODER_MODE_MINIMAL, ZYAN_TRUE);
+
+	return decoder;
+}
+
+std::uint8_t get_instruction_length(ZydisDecoder* decoder, std::uint8_t* instruction)
+{
+	ZydisDecodedInstruction decoded_instruction = { };
+
+	ZydisDecoderDecodeInstruction(decoder, nullptr, instruction, ZYDIS_MAX_INSTRUCTION_LENGTH, &decoded_instruction);
+
+	return decoded_instruction.length;
+}
+
+std::vector<std::uint8_t> get_routine_aligned_bytes(std::uint8_t* routine, std::uint64_t minimum_size)
+{
+	ZydisDecoder decoder = make_zydis_decoder();
 
 	std::vector<std::uint8_t> aligned_bytes = { };
 
@@ -83,11 +101,7 @@ std::vector<std::uint8_t> get_routine_aligned_bytes(std::uint8_t* routine, std::
 
 	while (aligned_bytes.size() < minimum_size)
 	{
-		ZydisDecodedInstruction decoded_instruction = { };
-
-		ZydisDecoderDecodeInstruction(&decoder, nullptr, current_instruction, ZYDIS_MAX_INSTRUCTION_LENGTH, &decoded_instruction);
-
-		std::uint8_t instruction_length = decoded_instruction.length;
+		std::uint8_t instruction_length = get_instruction_length(&decoder, current_instruction);
 
 		aligned_bytes.insert(aligned_bytes.end(), current_instruction, current_instruction + instruction_length);
 

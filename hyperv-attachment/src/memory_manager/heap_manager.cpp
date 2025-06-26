@@ -2,11 +2,11 @@
 #include "../crt/crt.h"
 #include <intrin.h>
 
-namespace heap_manager
+namespace
 {
 	constexpr std::uint64_t heap_block_size = 0x1000;
 
-	heap_entry_t* free_block_list_head = nullptr;
+	heap_manager::heap_entry_t* free_block_list_head = nullptr;
 
 	crt::mutex_t allocation_mutex = { };
 }
@@ -49,7 +49,7 @@ void* heap_manager::allocate_page()
 	return entry;
 }
 
-void heap_manager::free_memory(void* allocation_base)
+void heap_manager::free_page(void* allocation_base)
 {
 	if (allocation_base == nullptr)
 	{
@@ -64,4 +64,24 @@ void heap_manager::free_memory(void* allocation_base)
 	free_block_list_head = entry;
 
 	allocation_mutex.release();
+}
+
+std::uint64_t heap_manager::get_free_page_count()
+{
+	allocation_mutex.lock();
+
+	std::uint64_t count = 0;
+
+	heap_entry_t* entry = free_block_list_head;
+
+	while (entry != nullptr)
+	{
+		count++;
+
+		entry = entry->next;
+	}
+
+	allocation_mutex.release();
+
+	return count;
 }

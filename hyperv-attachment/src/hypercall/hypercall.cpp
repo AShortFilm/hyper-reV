@@ -6,6 +6,7 @@
 #include "../logs/logs.h"
 #include "../crt/crt.h"
 #include "../interrupts/interrupts.h"
+#include "../memory_manager/heap_manager.h"
 
 std::uint64_t operate_on_guest_physical_memory(trap_frame_t* trap_frame, memory_operation_t operation)
 {
@@ -119,7 +120,7 @@ std::uint64_t flush_logs(trap_frame_t* trap_frame)
 
     if (logs::flush(slat_cr3, guest_virtual_address, guest_cr3, count) == 0)
     {
-        return 0;
+        return -1;
     }
 
     return stored_logs_count;
@@ -188,6 +189,16 @@ void hypercall::process(hypercall_info_t hypercall_info, trap_frame_t* trap_fram
 
         break;
     }
+    case hypercall_type_t::hide_guest_physical_page:
+    {
+        virtual_address_t target_guest_physical_address = { .address = trap_frame->rdx };
+
+        cr3 slat_cr3 = slat::get_cr3();
+
+        trap_frame->rax = slat::hide_physical_page_from_guest(slat_cr3, target_guest_physical_address);
+
+        break;
+    }
     case hypercall_type_t::log_current_state:
     {
         trap_frame_log_t trap_frame_log = { };
@@ -201,6 +212,12 @@ void hypercall::process(hypercall_info_t hypercall_info, trap_frame_t* trap_fram
     case hypercall_type_t::flush_logs:
     {
         trap_frame->rax = flush_logs(trap_frame);
+
+        break;
+    }
+    case hypercall_type_t::get_heap_free_page_count:
+    {
+        trap_frame->rax = heap_manager::get_free_page_count();
 
         break;
     }

@@ -4,6 +4,7 @@
 namespace crt
 {
 	void copy_memory(void* destination, const void* source, std::uint64_t size);
+	void set_memory(void* destination, std::uint8_t value, std::uint64_t size);
 
 	template <class t>
 	t min(t a, t b)
@@ -15,6 +16,12 @@ namespace crt
 	t max(t a, t b)
 	{
 		return (a < b) ? b : a;
+	}
+
+	template <class t>
+	t abs(t n)
+	{
+		return (n < 0) ? -n : n;
 	}
 
 	template <class t>

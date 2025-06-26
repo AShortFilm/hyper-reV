@@ -1,4 +1,4 @@
-#include <Library/UefiLib.h>
+#include <Library/UefiBootServicesTableLib.h>
 
 #include "bootmgfw/bootmgfw.h"
 #include "hyperv_attachment/hyperv_attachment.h"
@@ -32,7 +32,7 @@ UefiMain(
         return status;
     }
 
-    status = hyperv_attachment_load_and_delete_from_disk(&hyperv_attachment_file_buffer);
+    status = hyperv_attachment_set_up();
 
     if (status != EFI_SUCCESS)
     {
