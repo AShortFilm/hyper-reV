@@ -101,9 +101,53 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
     return bytes_copied;
 }
 
+std::uint64_t get_state_log_exit_real_rcx_value(std::uint64_t rsp)
+{
+    if (rsp == 0)
+    {
+        return 0;
+    }
+
+    cr3 guest_cr3 = arch::get_guest_cr3();
+    cr3 slat_cr3 = slat::get_cr3();
+
+    std::uint64_t rcx = 0;
+
+    std::uint64_t bytes_read = 0;
+    std::uint64_t bytes_remaining = sizeof(std::uint64_t);
+
+    while (bytes_remaining != 0)
+    {
+        std::uint64_t virtual_size_left = 0;
+
+        std::uint64_t rsp_guest_physical_address = memory_manager::translate_guest_virtual_address(guest_cr3, slat_cr3, { .address = rsp + bytes_read }, &virtual_size_left);
+
+        if (rsp_guest_physical_address == 0)
+        {
+            return 0;
+        }
+
+        std::uint64_t physical_size_left = 0;
+
+        // rcx has just been pushed onto stack
+        std::uint64_t* rsp_mapped = reinterpret_cast<std::uint64_t*>(memory_manager::map_guest_physical(slat_cr3, rsp_guest_physical_address, &physical_size_left));
+
+        std::uint64_t size_left_of_page = crt::min(physical_size_left, virtual_size_left);
+        std::uint64_t size_to_read = crt::min(bytes_remaining, size_left_of_page);
+
+        crt::copy_memory(reinterpret_cast<std::uint8_t*>(&rcx) + bytes_read, reinterpret_cast<std::uint8_t*>(rsp_mapped) + bytes_read, size_to_read);
+
+        bytes_remaining -= size_to_read;
+        bytes_read += size_to_read;
+    }
+
+    return rcx;
+}
+
 void log_current_state(trap_frame_log_t trap_frame)
 {
     trap_frame.rip = arch::get_guest_rip();
+    trap_frame.rcx = get_state_log_exit_real_rcx_value(trap_frame.rsp);
 
     logs::add_log(trap_frame);
 }
@@ -203,7 +247,7 @@ void hypercall::process(hypercall_info_t hypercall_info, trap_frame_t* trap_fram
     {
         trap_frame_log_t trap_frame_log = { };
 
-        static_cast<trap_frame_t&>(trap_frame_log) = *trap_frame;
+        crt::copy_memory(&trap_frame_log, trap_frame, sizeof(trap_frame_t));
 
         log_current_state(trap_frame_log);
 

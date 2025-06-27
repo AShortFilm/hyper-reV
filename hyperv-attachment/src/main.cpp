@@ -90,12 +90,16 @@ std::uint64_t vmexit_handler_detour(std::uint64_t a1, std::uint64_t a2, std::uin
             vmcb_t* const vmcb = arch::get_vmcb();
 
             trap_frame->rax = vmcb->save_state.rax;
+            trap_frame->rsp = vmcb->save_state.rsp;
+#else
+            __vmx_vmread(VMCS_GUEST_RSP, &trap_frame->rsp);
 #endif
 
             hypercall::process(hypercall_info, trap_frame);
 
 #ifndef _INTELMACHINE
             vmcb->save_state.rax = trap_frame->rax;
+            vmcb->save_state.rsp = trap_frame->rsp;
 #endif
 
             return do_vmexit_premature_return();

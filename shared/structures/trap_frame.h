@@ -50,10 +50,3 @@ struct nmi_trap_frame_t
     std::uint64_t rsp;
     std::uint64_t ss;
 };
-
-
-struct amd_hyperv_trap_frame_t : trap_frame_t
-{
-	std::uint8_t pad_one[264];
-	std::uint64_t vmcb_physical_address;
-};
