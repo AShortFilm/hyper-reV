@@ -477,6 +477,8 @@ void commands::process(std::string command)
 	CLI::App app;
 	app.require_subcommand();
 
+	sys::kernel::parse_modules();
+
 	std::unordered_map<std::string, std::uint64_t> aliases = form_aliases();
 
 	CLI::Transformer aliases_transformer = CLI::Transformer(aliases, CLI::ignore_case);

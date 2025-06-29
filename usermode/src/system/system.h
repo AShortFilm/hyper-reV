@@ -18,6 +18,8 @@ namespace sys
 		std::vector<rtl_process_module_information_t> get_loaded_modules();
 		std::optional<rtl_process_module_information_t> get_module_information(std::string_view target_module_name);
 
+		std::uint8_t parse_modules();
+
 		inline std::unordered_map<std::string, kernel_module_t> modules_list = { };
 	}
 

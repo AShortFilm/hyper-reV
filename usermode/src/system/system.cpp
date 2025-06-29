@@ -83,9 +83,9 @@ std::unordered_map<std::string, std::uint64_t> parse_module_exports(const portab
 	return exports;
 }
 
-std::uint8_t parse_kernel_modules()
+std::uint8_t sys::kernel::parse_modules()
 {
-	auto loaded_modules = sys::kernel::get_loaded_modules();
+	auto loaded_modules = get_loaded_modules();
 
 	if (loaded_modules.size() <= 1)
 	{
@@ -94,6 +94,18 @@ std::uint8_t parse_kernel_modules()
 
 	for (const rtl_process_module_information_t& current_module : loaded_modules)
 	{
+		std::string module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
+
+		if (modules_list.contains(module_name) == true)
+		{
+			const kernel_module_t already_present_module = modules_list[module_name];
+
+			if (already_present_module.base_address == current_module.image_base && already_present_module.size == current_module.image_size)
+			{
+				continue;
+			}
+		}
+
 		std::vector<std::uint8_t> module_dump = dump_kernel_module(current_module.image_base);
 
 		if (module_dump.empty() == true)
@@ -101,9 +113,7 @@ std::uint8_t parse_kernel_modules()
 			continue;
 		}
 
-		std::string module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
-
-		sys::kernel_module_t kernel_module = { };
+		kernel_module_t kernel_module = { };
 
 		portable_executable::image_t* image = reinterpret_cast<portable_executable::image_t*>(module_dump.data());
 
@@ -111,7 +121,7 @@ std::uint8_t parse_kernel_modules()
 		kernel_module.base_address = current_module.image_base;
 		kernel_module.size = current_module.image_size;
 
-		sys::kernel::modules_list[module_name] = kernel_module;
+		modules_list[module_name] = kernel_module;
 	}
 
 	return 1;
@@ -173,7 +183,7 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
-	if (parse_kernel_modules() == 0)
+	if (kernel::parse_modules() == 0)
 	{
 		std::println("unable to parse kernel modules");
 
