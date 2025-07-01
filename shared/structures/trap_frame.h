@@ -24,6 +24,8 @@ struct trap_frame_t
 struct trap_frame_log_t : trap_frame_t
 {
     std::uint64_t rip;
+    std::uint64_t cr3;
+    std::uint64_t potential_return_address;
 };
 
 struct nmi_trap_frame_t

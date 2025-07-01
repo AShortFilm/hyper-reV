@@ -363,7 +363,7 @@ CLI::App* init_fl(CLI::App& app)
 
 void process_fl(CLI::App* fl)
 {
-	constexpr std::uint64_t log_count = 32;
+	constexpr std::uint64_t log_count = 107;
 	constexpr std::uint64_t failed_log_count = -1;
 
 	std::vector<trap_frame_log_t> logs(log_count);
@@ -391,8 +391,8 @@ void process_fl(CLI::App* fl)
 				break;
 			}
 
-			std::println("{}. rip=0x{:X} rax=0x{:X} rcx=0x{:X} rdx=0x{:X} rbx=0x{:X}\nrsp=0x{:X} rbp=0x{:X} rsi=0x{:X} rdi=0x{:X} r8=0x{:X}\nr9=0x{:X} r10=0x{:X} r11=0x{:X} r12=0x{:X} r13=0x{:X}\nr14=0x{:X} r15=0x{:X}\n"
-				,i, log.rip, log.rax, log.rcx, log.rdx, log.rbx, log.rsp, log.rbp, log.rsi, log.rdi, log.r8, log.r9, log.r10, log.r11, log.r12, log.r13, log.r14, log.r15);
+			std::println("{}. rip=0x{:X} potential_return_address=0x{:X} rax=0x{:X}\nrcx=0x{:X} rdx=0x{:X} rbx=0x{:X} rsp=0x{:X}\nrbp=0x{:X} rsi=0x{:X} rdi=0x{:X} r8=0x{:X} r9=0x{:X}\nr10=0x{:X} r11=0x{:X} r12=0x{:X} r13=0x{:X} r14=0x{:X}\n r15=0x{:X} cr3=0x{:X}\n"
+				,i, log.rip, log.potential_return_address, log.rax, log.rcx, log.rdx, log.rbx, log.rsp, log.rbp, log.rsi, log.rdi, log.r8, log.r9, log.r10, log.r11, log.r12, log.r13, log.r14, log.r15, log.cr3);
 		}
 	}
 }

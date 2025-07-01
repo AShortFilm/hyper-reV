@@ -142,6 +142,6 @@ void entry_point(std::uint8_t** vmexit_handler_detour_out, std::uint8_t* origina
   
     heap_manager::set_up(mapped_heap_usable_base, heap_usable_size);
 
-    slat::set_up();
     logs::set_up();
+    slat::set_up();
 }
