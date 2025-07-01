@@ -29,8 +29,6 @@ namespace sys
 		std::uint32_t adjust_privilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread_only, std::uint8_t* previous_enabled_state);
 		void* allocate_locked_memory(std::uint64_t size, std::uint32_t protection);
 		std::uint8_t free_memory(void* address);
-
-		std::string to_string(const std::wstring& wstring);
 	}
 
 	struct kernel_module_t

@@ -317,7 +317,7 @@ void process_rkh(CLI::App* rkh)
 {
 	std::uint64_t virtual_address = get_command_option<std::uint64_t>(rkh, "virtual_address");
 
-	std::uint8_t hook_removal_status = hook::remove_kernel_hook(virtual_address);
+	std::uint8_t hook_removal_status = hook::remove_kernel_hook(virtual_address, 1);
 
 	if (hook_removal_status == 1)
 	{

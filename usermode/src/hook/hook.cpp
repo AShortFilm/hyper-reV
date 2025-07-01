@@ -55,8 +55,10 @@ void hook::clean_up()
 {
 	for (const auto& [virtual_address, info] : kernel_hook_list)
 	{
-		remove_kernel_hook(virtual_address);
+		remove_kernel_hook(virtual_address, 0);
 	}
+
+	kernel_hook_list.clear();
 
 	if (kernel_detour_holder_physical_page != 0)
 	{
@@ -339,7 +341,6 @@ void make_jcc_patches(std::vector<std::uint8_t>& aligned_bytes, const std::vecto
 
 		std::int32_t rip_change = static_cast<std::int32_t>(-jcc_rel32_instruction_length - bytes_added - instruction_aligned_bytes_offset);
 
-		// this overwrites the WRONG bytes
 		*reinterpret_cast<std::int32_t*>(&aligned_bytes[instruction_aligned_bytes_offset + bytes_added + 2]) = rip_change;
 	}
 
@@ -583,7 +584,7 @@ std::uint8_t hook::add_kernel_hook(std::uint64_t routine_to_hook_virtual, const 
 	return 1;
 }
 
-std::uint8_t hook::remove_kernel_hook(std::uint64_t hooked_routine_virtual)
+std::uint8_t hook::remove_kernel_hook(std::uint64_t hooked_routine_virtual, std::uint8_t do_list_erase)
 {
 	if (kernel_hook_list.contains(hooked_routine_virtual) == false)
 	{
@@ -608,7 +609,10 @@ std::uint8_t hook::remove_kernel_hook(std::uint64_t hooked_routine_virtual)
 		return 0;
 	}
 
-	kernel_hook_list.erase(hooked_routine_virtual);
+	if (do_list_erase == 1)
+	{
+		kernel_hook_list.erase(hooked_routine_virtual);
+	}
 
 	void* detour_holder_allocation = kernel_detour_holder::get_allocation_from_offset(hook_info.detour_holder_shadow_offset);
 

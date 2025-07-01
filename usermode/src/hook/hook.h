@@ -9,7 +9,7 @@ namespace hook
 	void clean_up();
 
 	std::uint8_t add_kernel_hook(std::uint64_t routine_to_hook_virtual, const std::vector<std::uint8_t>& extra_assembled_bytes);
-	std::uint8_t remove_kernel_hook(std::uint64_t hooked_routine_virtual);
+	std::uint8_t remove_kernel_hook(std::uint64_t hooked_routine_virtual, std::uint8_t do_list_erase);
 
 	struct kernel_hook_info_t
 	{

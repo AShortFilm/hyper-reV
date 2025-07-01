@@ -277,7 +277,7 @@ void* sys::user::allocate_locked_memory(std::uint64_t size, std::uint32_t protec
 
 	if (allocation_base == nullptr)
 	{
-		return 0;
+		return nullptr;
 	}
 
 	std::int32_t lock_status = VirtualLock(allocation_base, size);
@@ -286,7 +286,7 @@ void* sys::user::allocate_locked_memory(std::uint64_t size, std::uint32_t protec
 	{
 		free_memory(allocation_base);
 
-		return 0;
+		return nullptr;
 	}
 
 	return allocation_base;
@@ -297,17 +297,4 @@ std::uint8_t sys::user::free_memory(void* address)
 	std::int32_t free_status = VirtualFree(address, 0, MEM_RELEASE);
 
 	return free_status != 0;
-}
-
-std::string sys::user::to_string(const std::wstring& wstring)
-{
-	std::string converted_string = { };
-
-	std::ranges::transform(wstring,
-		std::back_inserter(converted_string), [](wchar_t character)
-		{
-			return static_cast<char>(character);
-		});
-
-	return converted_string;
 }
