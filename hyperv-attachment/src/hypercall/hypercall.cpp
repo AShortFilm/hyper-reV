@@ -100,25 +100,17 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
     return bytes_copied;
 }
 
-struct rsp_stored_info_t
-{
-    std::uint64_t rcx;
-    std::uint64_t return_address;
-};
-
-rsp_stored_info_t read_rsp_stored_info_from_log_exit(cr3 guest_cr3, std::uint64_t rsp)
+std::uint8_t copy_stack_data_from_log_exit(std::uint64_t* stack_data, std::uint64_t stack_data_count, cr3 guest_cr3, std::uint64_t rsp)
 {
     if (rsp == 0)
     {
-        return { };
+        return 0;
     }
 
     cr3 slat_cr3 = slat::get_cr3();
 
-    rsp_stored_info_t info = { };
-
     std::uint64_t bytes_read = 0;
-    std::uint64_t bytes_remaining = sizeof(info);
+    std::uint64_t bytes_remaining = stack_data_count * sizeof(std::uint64_t);
 
     while (bytes_remaining != 0)
     {
@@ -128,7 +120,7 @@ rsp_stored_info_t read_rsp_stored_info_from_log_exit(cr3 guest_cr3, std::uint64_
 
         if (rsp_guest_physical_address == 0)
         {
-            return info;
+            return 0;
         }
 
         std::uint64_t physical_size_left = 0;
@@ -139,26 +131,37 @@ rsp_stored_info_t read_rsp_stored_info_from_log_exit(cr3 guest_cr3, std::uint64_
         std::uint64_t size_left_of_page = crt::min(physical_size_left, virtual_size_left);
         std::uint64_t size_to_read = crt::min(bytes_remaining, size_left_of_page);
 
-        crt::copy_memory(reinterpret_cast<std::uint8_t*>(&info) + bytes_read, reinterpret_cast<std::uint8_t*>(rsp_mapped) + bytes_read, size_to_read);
+        crt::copy_memory(reinterpret_cast<std::uint8_t*>(stack_data) + bytes_read, reinterpret_cast<std::uint8_t*>(rsp_mapped) + bytes_read, size_to_read);
 
         bytes_remaining -= size_to_read;
         bytes_read += size_to_read;
     }
 
-    return info;
+    return 1;
+}
+
+void do_stack_data_copy(trap_frame_log_t& trap_frame, cr3 guest_cr3)
+{
+    constexpr std::uint64_t stack_data_count = trap_frame_log_stack_data_count + 1;
+
+    std::uint64_t stack_data[stack_data_count] = { };
+
+    copy_stack_data_from_log_exit(&stack_data[0], stack_data_count, guest_cr3, trap_frame.rsp);
+
+    crt::copy_memory(&trap_frame.stack_data, &stack_data[1], sizeof(trap_frame.stack_data));
+
+    trap_frame.rcx = stack_data[0];
+    trap_frame.rsp += 8; // get rid of the rcx value we push onto stack ourselves
 }
 
 void log_current_state(trap_frame_log_t trap_frame)
 {
-    trap_frame.rip = arch::get_guest_rip();
-
     cr3 guest_cr3 = arch::get_guest_cr3();
 
-    rsp_stored_info_t rsp_stored_info = read_rsp_stored_info_from_log_exit(guest_cr3, trap_frame.rsp);
+    do_stack_data_copy(trap_frame, guest_cr3);
 
-    trap_frame.rcx = rsp_stored_info.rcx;
     trap_frame.cr3 = guest_cr3.flags;
-    trap_frame.potential_return_address = rsp_stored_info.return_address;
+    trap_frame.rip = arch::get_guest_rip();
 
     logs::add_log(trap_frame);
 }
