@@ -20,6 +20,8 @@ namespace sys
 
 		std::uint8_t parse_modules();
 
+		std::uint8_t dump_module_to_disk(std::string_view target_module_name, const std::string_view output_directory);
+
 		inline std::unordered_map<std::string, kernel_module_t> modules_list = { };
 	}
 
@@ -29,6 +31,13 @@ namespace sys
 		std::uint32_t adjust_privilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread_only, std::uint8_t* previous_enabled_state);
 		void* allocate_locked_memory(std::uint64_t size, std::uint32_t protection);
 		std::uint8_t free_memory(void* address);
+	}
+
+	namespace fs
+	{
+		std::uint8_t exists(std::string_view path);
+
+		std::uint8_t write_to_disk(std::string_view full_path, const std::vector<std::uint8_t>& buffer);
 	}
 
 	struct kernel_module_t

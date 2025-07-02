@@ -15,19 +15,24 @@ std::uint64_t operate_on_guest_physical_memory(trap_frame_t* trap_frame, memory_
     std::uint64_t guest_buffer_virtual_address = trap_frame->r8;
     std::uint64_t guest_physical_address = trap_frame->rdx;
 
-    std::uint64_t size_left_to_read = trap_frame->r9;
+    std::uint64_t size_left_to_copy = trap_frame->r9;
 
-    std::uint64_t bytes_read = 0;
+    std::uint64_t bytes_copied = 0;
 
-    while (size_left_to_read != 0)
+    while (size_left_to_copy != 0)
     {
-        std::uint64_t size_left_of_destination_slat_page = 0;
-        std::uint64_t size_left_of_source_slat_page = 0;
+        std::uint64_t size_left_of_destination_slat_page = UINT64_MAX;
+        std::uint64_t size_left_of_source_slat_page = UINT64_MAX;
 
-        std::uint64_t guest_buffer_physical_address = memory_manager::translate_guest_virtual_address(guest_cr3, slat_cr3, { .address = guest_buffer_virtual_address + bytes_read });
+        std::uint64_t guest_buffer_physical_address = memory_manager::translate_guest_virtual_address(guest_cr3, slat_cr3, { .address = guest_buffer_virtual_address + bytes_copied });
 
         std::uint64_t host_destination = memory_manager::map_guest_physical(slat_cr3, guest_buffer_physical_address, &size_left_of_destination_slat_page);
-        std::uint64_t host_source = memory_manager::map_guest_physical(slat_cr3, guest_physical_address + bytes_read, &size_left_of_source_slat_page);
+        std::uint64_t host_source = memory_manager::map_guest_physical(slat_cr3, guest_physical_address + bytes_copied, &size_left_of_source_slat_page);
+
+        if (size_left_of_destination_slat_page == UINT64_MAX || size_left_of_source_slat_page == UINT64_MAX)
+        {
+            break;
+        }
 
         if (operation == memory_operation_t::write_operation)
         {
@@ -36,15 +41,20 @@ std::uint64_t operate_on_guest_physical_memory(trap_frame_t* trap_frame, memory_
 
         std::uint64_t size_left_of_slat_pages = crt::min(size_left_of_source_slat_page, size_left_of_destination_slat_page);
 
-        std::uint64_t copy_size = crt::min(size_left_to_read, size_left_of_slat_pages);
+        std::uint64_t copy_size = crt::min(size_left_to_copy, size_left_of_slat_pages);
+
+        if (copy_size == 0)
+        {
+            break;
+        }
 
         crt::copy_memory(reinterpret_cast<void*>(host_destination), reinterpret_cast<const void*>(host_source), copy_size);
 
-        size_left_to_read -= copy_size;
-        bytes_read += copy_size;
+        size_left_to_copy -= copy_size;
+        bytes_copied += copy_size;
     }
 
-    return bytes_read;
+    return bytes_copied;
 }
 
 std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_operation_t operation, std::uint64_t address_of_page_directory)
@@ -62,22 +72,27 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
 
     while (size_left_to_read != 0)
     {
-        std::uint64_t size_left_of_destination_virtual_page = 0;
-        std::uint64_t size_left_of_destination_slat_page = 0;
+        std::uint64_t size_left_of_destination_virtual_page = UINT64_MAX;
+        std::uint64_t size_left_of_destination_slat_page = UINT64_MAX;
 
-        std::uint64_t size_left_of_source_virtual_page = 0;
-        std::uint64_t size_left_of_source_slat_page = 0;
+        std::uint64_t size_left_of_source_virtual_page = UINT64_MAX;
+        std::uint64_t size_left_of_source_slat_page = UINT64_MAX;
 
         std::uint64_t guest_source_physical_address = memory_manager::translate_guest_virtual_address(guest_source_cr3, slat_cr3, { .address = guest_source_virtual_address + bytes_copied }, &size_left_of_source_virtual_page);
         std::uint64_t guest_destination_physical_address = memory_manager::translate_guest_virtual_address(guest_destination_cr3, slat_cr3, { .address = guest_destination_virtual_address + bytes_copied }, &size_left_of_destination_virtual_page);
 
-        if (guest_source_physical_address == 0 || guest_destination_physical_address == 0)
+        if (size_left_of_destination_virtual_page == UINT64_MAX || size_left_of_source_virtual_page == UINT64_MAX)
         {
             break;
         }
 
         std::uint64_t host_destination = memory_manager::map_guest_physical(slat_cr3, guest_destination_physical_address, &size_left_of_destination_slat_page);
         std::uint64_t host_source = memory_manager::map_guest_physical(slat_cr3, guest_source_physical_address, &size_left_of_source_slat_page);
+
+    	if (size_left_of_destination_slat_page == UINT64_MAX || size_left_of_source_slat_page == UINT64_MAX)
+        {
+            break;
+        }
 
         if (operation == memory_operation_t::write_operation)
         {
@@ -90,6 +105,11 @@ std::uint64_t operate_on_guest_virtual_memory(trap_frame_t* trap_frame, memory_o
         std::uint64_t size_left_of_pages = crt::min(size_left_of_slat_pages, size_left_of_virtual_pages);
 
         std::uint64_t copy_size = crt::min(size_left_to_read, size_left_of_pages);
+
+        if (copy_size == 0)
+        {
+            break;
+        }
 
         crt::copy_memory(reinterpret_cast<void*>(host_destination), reinterpret_cast<const void*>(host_source), copy_size);
 
@@ -130,6 +150,11 @@ std::uint8_t copy_stack_data_from_log_exit(std::uint64_t* stack_data, std::uint6
 
         std::uint64_t size_left_of_page = crt::min(physical_size_left, virtual_size_left);
         std::uint64_t size_to_read = crt::min(bytes_remaining, size_left_of_page);
+
+        if (size_to_read == 0)
+        {
+            return 0;
+        }
 
         crt::copy_memory(reinterpret_cast<std::uint8_t*>(stack_data) + bytes_read, reinterpret_cast<std::uint8_t*>(rsp_mapped) + bytes_read, size_to_read);
 

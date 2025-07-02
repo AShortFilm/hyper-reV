@@ -56,11 +56,12 @@ CLI::App* init_rgpm(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_rgpm(CLI::App* rgpm)
 {
-	std::uint64_t guest_physical_address = get_command_option<std::uint64_t>(rgpm, "physical_address");
-	std::uint64_t size = get_command_option<std::uint64_t>(rgpm, "size");
+	const std::uint64_t guest_physical_address = get_command_option<std::uint64_t>(rgpm, "physical_address");
+	const std::uint64_t size = get_command_option<std::uint64_t>(rgpm, "size");
+
 	std::uint64_t value = 0;
 
-	std::uint64_t bytes_read = hypercall::read_guest_physical_memory(&value, guest_physical_address, size);
+	const std::uint64_t bytes_read = hypercall::read_guest_physical_memory(&value, guest_physical_address, size);
 
 	if (bytes_read == size)
 	{
@@ -85,12 +86,12 @@ CLI::App* init_wgpm(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_wgpm(CLI::App* wgpm)
 {
-	std::uint64_t guest_physical_address = get_command_option<std::uint64_t>(wgpm, "physical_address");
-	std::uint64_t size = get_command_option<std::uint64_t>(wgpm, "size");
+	const std::uint64_t guest_physical_address = get_command_option<std::uint64_t>(wgpm, "physical_address");
+	const std::uint64_t size = get_command_option<std::uint64_t>(wgpm, "size");
 
 	std::uint64_t value = get_command_option<std::uint64_t>(wgpm, "value");
 
-	std::uint64_t bytes_written = hypercall::write_guest_physical_memory(&value, guest_physical_address, size);
+	const std::uint64_t bytes_written = hypercall::write_guest_physical_memory(&value, guest_physical_address, size);
 
 	if (bytes_written == size)
 	{
@@ -115,14 +116,14 @@ CLI::App* init_cgpm(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_cgpm(CLI::App* cgpm)
 {
-	std::uint64_t guest_destination_physical_address = get_command_option<std::uint64_t>(cgpm, "destination_physical_address");
-	std::uint64_t guest_source_physical_address = get_command_option<std::uint64_t>(cgpm, "source_physical_address");
-	std::uint64_t size = get_command_option<std::uint64_t>(cgpm, "size");
+	const std::uint64_t guest_destination_physical_address = get_command_option<std::uint64_t>(cgpm, "destination_physical_address");
+	const std::uint64_t guest_source_physical_address = get_command_option<std::uint64_t>(cgpm, "source_physical_address");
+	const std::uint64_t size = get_command_option<std::uint64_t>(cgpm, "size");
 
 	std::vector<std::uint8_t> buffer(size);
 
-	std::uint64_t bytes_read = hypercall::read_guest_physical_memory(buffer.data(), guest_source_physical_address, size);
-	std::uint64_t bytes_written = hypercall::write_guest_physical_memory(buffer.data(), guest_destination_physical_address, size);
+	const std::uint64_t bytes_read = hypercall::read_guest_physical_memory(buffer.data(), guest_source_physical_address, size);
+	const std::uint64_t bytes_written = hypercall::write_guest_physical_memory(buffer.data(), guest_destination_physical_address, size);
 
 	if ((bytes_read == size) && (bytes_written == size))
 	{
@@ -146,10 +147,10 @@ CLI::App* init_gvat(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_gvat(CLI::App* gvat)
 {
-	std::uint64_t virtual_address = get_command_option<std::uint64_t>(gvat, "virtual_address");
-	std::uint64_t cr3 = get_command_option<std::uint64_t>(gvat, "cr3");
+	const std::uint64_t virtual_address = get_command_option<std::uint64_t>(gvat, "virtual_address");
+	const std::uint64_t cr3 = get_command_option<std::uint64_t>(gvat, "cr3");
 
-	std::uint64_t physical_address = hypercall::translate_guest_virtual_address(virtual_address, cr3);
+	const std::uint64_t physical_address = hypercall::translate_guest_virtual_address(virtual_address, cr3);
 
 	std::println("physical address: 0x{:x}", physical_address);
 }
@@ -167,13 +168,13 @@ CLI::App* init_rgvm(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_rgvm(CLI::App* rgvm)
 {
-	std::uint64_t guest_virtual_address = get_command_option<std::uint64_t>(rgvm, "virtual_address");
-	std::uint64_t cr3 = get_command_option<std::uint64_t>(rgvm, "cr3");
-	std::uint64_t size = get_command_option<std::uint64_t>(rgvm, "size");
+	const std::uint64_t guest_virtual_address = get_command_option<std::uint64_t>(rgvm, "virtual_address");
+	const std::uint64_t cr3 = get_command_option<std::uint64_t>(rgvm, "cr3");
+	const std::uint64_t size = get_command_option<std::uint64_t>(rgvm, "size");
 
 	std::uint64_t value = 0;
 
-	std::uint64_t bytes_read = hypercall::read_guest_virtual_memory(&value, guest_virtual_address, cr3, size);
+	const std::uint64_t bytes_read = hypercall::read_guest_virtual_memory(&value, guest_virtual_address, cr3, size);
 
 	if (bytes_read == size)
 	{
@@ -199,12 +200,13 @@ CLI::App* init_wgvm(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_wgvm(CLI::App* wgvm)
 {
-	std::uint64_t guest_virtual_address = get_command_option<std::uint64_t>(wgvm, "virtual_address");
-	std::uint64_t cr3 = get_command_option<std::uint64_t>(wgvm, "cr3");
-	std::uint64_t size = get_command_option<std::uint64_t>(wgvm, "size");
+	const std::uint64_t guest_virtual_address = get_command_option<std::uint64_t>(wgvm, "virtual_address");
+	const std::uint64_t cr3 = get_command_option<std::uint64_t>(wgvm, "cr3");
+	const std::uint64_t size = get_command_option<std::uint64_t>(wgvm, "size");
+
 	std::uint64_t value = get_command_option<std::uint64_t>(wgvm, "value");
 
-	std::uint64_t bytes_written = hypercall::write_guest_virtual_memory(&value, guest_virtual_address, cr3, size);
+	const std::uint64_t bytes_written = hypercall::write_guest_virtual_memory(&value, guest_virtual_address, cr3, size);
 
 	if (bytes_written == size)
 	{
@@ -231,18 +233,18 @@ CLI::App* init_cgvm(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_cgvm(CLI::App* wgvm)
 {
-	std::uint64_t guest_destination_virtual_address = get_command_option<std::uint64_t>(wgvm, "destination_virtual_address");
-	std::uint64_t guest_destination_cr3 = get_command_option<std::uint64_t>(wgvm, "destination_cr3");
+	const std::uint64_t guest_destination_virtual_address = get_command_option<std::uint64_t>(wgvm, "destination_virtual_address");
+	const std::uint64_t guest_destination_cr3 = get_command_option<std::uint64_t>(wgvm, "destination_cr3");
 
-	std::uint64_t guest_source_virtual_address = get_command_option<std::uint64_t>(wgvm, "source_virtual_address");
-	std::uint64_t guest_source_cr3 = get_command_option<std::uint64_t>(wgvm, "source_cr3");
+	const std::uint64_t guest_source_virtual_address = get_command_option<std::uint64_t>(wgvm, "source_virtual_address");
+	const std::uint64_t guest_source_cr3 = get_command_option<std::uint64_t>(wgvm, "source_cr3");
 
-	std::uint64_t size = get_command_option<std::uint64_t>(wgvm, "size");
+	const std::uint64_t size = get_command_option<std::uint64_t>(wgvm, "size");
 
 	std::vector<std::uint8_t> buffer(size);
 
-	std::uint64_t bytes_read = hypercall::read_guest_virtual_memory(buffer.data(), guest_source_virtual_address, guest_source_cr3, size);
-	std::uint64_t bytes_written = hypercall::write_guest_virtual_memory(buffer.data(), guest_destination_virtual_address, guest_destination_cr3, size);
+	const std::uint64_t bytes_read = hypercall::read_guest_virtual_memory(buffer.data(), guest_source_virtual_address, guest_source_cr3, size);
+	const std::uint64_t bytes_written = hypercall::write_guest_virtual_memory(buffer.data(), guest_destination_virtual_address, guest_destination_cr3, size);
 
 	if ((bytes_read == size) && (bytes_written == size))
 	{
@@ -268,11 +270,12 @@ CLI::App* init_akh(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_akh(CLI::App* akh)
 {
-	std::uint64_t virtual_address = get_command_option<std::uint64_t>(akh, "virtual_address");
-	std::vector<uint8_t> asm_bytes = get_command_option<std::vector<uint8_t>>(akh, "--asmbytes");
-	std::vector<uint8_t> post_original_asm_bytes = get_command_option<std::vector<uint8_t>>(akh, "--post_original_asmbytes");
+	const std::uint64_t virtual_address = get_command_option<std::uint64_t>(akh, "virtual_address");
 
-	std::uint8_t monitor = get_command_flag(akh, "--monitor");
+	std::vector<uint8_t> asm_bytes = get_command_option<std::vector<uint8_t>>(akh, "--asmbytes");
+	const std::vector<uint8_t> post_original_asm_bytes = get_command_option<std::vector<uint8_t>>(akh, "--post_original_asmbytes");
+
+	const std::uint8_t monitor = get_command_flag(akh, "--monitor");
 
 	if (monitor == 1)
 	{
@@ -294,7 +297,7 @@ void process_akh(CLI::App* akh)
 		asm_bytes.insert(asm_bytes.end(), monitor_bytes.begin(), monitor_bytes.end());
 	}
 
-	std::uint8_t hook_status = hook::add_kernel_hook(virtual_address, asm_bytes, post_original_asm_bytes);
+	const std::uint8_t hook_status = hook::add_kernel_hook(virtual_address, asm_bytes, post_original_asm_bytes);
 
 	if (hook_status == 1)
 	{
@@ -317,9 +320,9 @@ CLI::App* init_rkh(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_rkh(CLI::App* rkh)
 {
-	std::uint64_t virtual_address = get_command_option<std::uint64_t>(rkh, "virtual_address");
+	const std::uint64_t virtual_address = get_command_option<std::uint64_t>(rkh, "virtual_address");
 
-	std::uint8_t hook_removal_status = hook::remove_kernel_hook(virtual_address, 1);
+	const std::uint8_t hook_removal_status = hook::remove_kernel_hook(virtual_address, 1);
 
 	if (hook_removal_status == 1)
 	{
@@ -342,9 +345,9 @@ CLI::App* init_hgpp(CLI::App& app, CLI::Transformer& aliases_transformer)
 
 void process_hgpp(CLI::App* hgpp)
 {
-	std::uint64_t physical_address = get_command_option<std::uint64_t>(hgpp, "physical_address");
+	const std::uint64_t physical_address = get_command_option<std::uint64_t>(hgpp, "physical_address");
 
-	std::uint64_t hide_status = hypercall::hide_guest_physical_page(physical_address);
+	const std::uint64_t hide_status = hypercall::hide_guest_physical_page(physical_address);
 
 	if (hide_status == 1)
 	{
@@ -370,7 +373,7 @@ void process_fl(CLI::App* fl)
 
 	std::vector<trap_frame_log_t> logs(log_count);
 
-	std::uint64_t logs_flushed = hypercall::flush_logs(logs);
+	const std::uint64_t logs_flushed = hypercall::flush_logs(logs);
 
 	if (logs_flushed == failed_log_count)
 	{
@@ -417,7 +420,7 @@ CLI::App* init_hfpc(CLI::App& app)
 
 void process_hfpc(CLI::App* hfpc)
 {
-	std::uint64_t heap_free_page_count = hypercall::get_heap_free_page_count();
+	const std::uint64_t heap_free_page_count = hypercall::get_heap_free_page_count();
 
 	std::println("heap free page count: {}", heap_free_page_count);
 }
@@ -448,7 +451,7 @@ CLI::App* init_kme(CLI::App& app)
 
 void process_kme(CLI::App* kme)
 {
-	std::string module_name = get_command_option<std::string>(kme, "module_name");
+	const std::string module_name = get_command_option<std::string>(kme, "module_name");
 
 	if (sys::kernel::modules_list.contains(module_name) == false)
 	{
@@ -457,11 +460,46 @@ void process_kme(CLI::App* kme)
 		return;
 	}
 
-	sys::kernel_module_t module = sys::kernel::modules_list[module_name];
+	const sys::kernel_module_t module = sys::kernel::modules_list[module_name];
 
 	for (auto& [export_name, export_address] : module.exports)
 	{
 		std::println("{} = 0x{:X}", export_name, export_address);
+	}
+}
+
+CLI::App* init_dkm(CLI::App& app)
+{
+	CLI::App* dkm = app.add_subcommand("dkm", "dump kernel module to a file on disk")->ignore_case();
+
+	add_command_option(dkm, "module_name")->required();
+	add_command_option(dkm, "output_directory")->required();
+
+	return dkm;
+}
+
+void process_dkm(CLI::App* dkm)
+{
+	const std::string module_name = get_command_option<std::string>(dkm, "module_name");
+
+	if (sys::kernel::modules_list.contains(module_name) == false)
+	{
+		std::println("module not found");
+
+		return;
+	}
+
+	const std::string output_directory = get_command_option<std::string>(dkm, "output_directory");
+
+	const std::uint8_t status = sys::kernel::dump_module_to_disk(module_name, output_directory);
+
+	if (status == 1)
+	{
+		std::println("success in dumping module");
+	}
+	else
+	{
+		std::println("failed to dump module");
 	}
 }
 
@@ -478,7 +516,7 @@ std::unordered_map<std::string, std::uint64_t> form_aliases()
 	return aliases;
 }
 
-void commands::process(std::string command)
+void commands::process(const std::string command)
 {
 	if (command.empty() == true)
 	{
@@ -490,7 +528,7 @@ void commands::process(std::string command)
 
 	sys::kernel::parse_modules();
 
-	std::unordered_map<std::string, std::uint64_t> aliases = form_aliases();
+	const std::unordered_map<std::string, std::uint64_t> aliases = form_aliases();
 
 	CLI::Transformer aliases_transformer = CLI::Transformer(aliases, CLI::ignore_case);
 
@@ -510,6 +548,7 @@ void commands::process(std::string command)
 	CLI::App* hfpc = init_hfpc(app);
 	CLI::App* lkm = init_lkm(app);
 	CLI::App* kme = init_kme(app);
+	CLI::App* dkm = init_dkm(app);
 
 	try
 	{
@@ -529,6 +568,7 @@ void commands::process(std::string command)
 		d_process_command(hfpc);
 		d_process_command(lkm);
 		d_process_command(kme);
+		d_process_command(dkm);
 	}
 	catch (const CLI::ParseError& error)
 	{

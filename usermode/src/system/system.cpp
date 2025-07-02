@@ -1,6 +1,8 @@
 #include "system.h"
 
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 
 #include "../hypercall/hypercall.h"
 #include "../hook/hook.h"
@@ -83,9 +85,22 @@ std::unordered_map<std::string, std::uint64_t> parse_module_exports(const portab
 	return exports;
 }
 
+void add_module_to_list(const std::string& module_name, const std::vector<std::uint8_t>& module_dump, const std::uint64_t module_base_address, const std::uint32_t module_size)
+{
+	sys::kernel_module_t kernel_module = { };
+
+	const portable_executable::image_t* image = reinterpret_cast<const portable_executable::image_t*>(module_dump.data());
+
+	kernel_module.exports = parse_module_exports(image, module_name, module_base_address);
+	kernel_module.base_address = module_base_address;
+	kernel_module.size = module_size;
+
+	sys::kernel::modules_list[module_name] = kernel_module;
+}
+
 std::uint8_t sys::kernel::parse_modules()
 {
-	auto loaded_modules = get_loaded_modules();
+	const auto loaded_modules = get_loaded_modules();
 
 	if (loaded_modules.size() <= 1)
 	{
@@ -94,7 +109,7 @@ std::uint8_t sys::kernel::parse_modules()
 
 	for (const rtl_process_module_information_t& current_module : loaded_modules)
 	{
-		std::string module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
+		const std::string module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
 
 		if (modules_list.contains(module_name) == true)
 		{
@@ -113,18 +128,46 @@ std::uint8_t sys::kernel::parse_modules()
 			continue;
 		}
 
-		kernel_module_t kernel_module = { };
-
-		portable_executable::image_t* image = reinterpret_cast<portable_executable::image_t*>(module_dump.data());
-
-		kernel_module.exports = parse_module_exports(image, module_name, current_module.image_base);
-		kernel_module.base_address = current_module.image_base;
-		kernel_module.size = current_module.image_size;
-
-		modules_list[module_name] = kernel_module;
+		add_module_to_list(module_name, module_dump, current_module.image_base, current_module.image_size);
 	}
 
 	return 1;
+}
+
+void fix_dump(std::vector<std::uint8_t>& buffer)
+{
+	portable_executable::image_t* image = reinterpret_cast<portable_executable::image_t*>(buffer.data());
+
+	for (auto& current_section : image->sections())
+	{
+		current_section.pointer_to_raw_data = current_section.virtual_address;
+		current_section.size_of_raw_data = current_section.virtual_size;
+	}
+}
+
+std::uint8_t sys::kernel::dump_module_to_disk(const std::string_view target_module_name, const std::string_view output_directory)
+{
+	const auto module_info = modules_list[target_module_name.data()];
+
+	const std::uint64_t module_base_address = module_info.base_address;
+
+	if (module_base_address == 0)
+	{
+		return 0;
+	}
+
+	std::vector<std::uint8_t> buffer = dump_kernel_module(module_base_address);
+
+	if (buffer.empty() == 1)
+	{
+		return 0;
+	}
+
+	fix_dump(buffer);
+
+	std::string output_path = std::string(output_directory) + "\\" + "dump_" + std::string(target_module_name);
+
+	return fs::write_to_disk(output_path, buffer);
 }
 
 std::uint8_t sys::set_up()
@@ -145,9 +188,11 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
-	auto ntoskrnl = kernel::get_module_information("ntoskrnl.exe");
+	const std::string ntoskrnl_name = "ntoskrnl.exe";
 
-	if (!ntoskrnl)
+	auto ntoskrnl = kernel::get_module_information(ntoskrnl_name);
+
+	if (ntoskrnl.has_value() == 0)
 	{
 		std::println("unable to locate ntoskrnl");
 
@@ -155,10 +200,11 @@ std::uint8_t sys::set_up()
 	}
 
 	std::uint64_t ntoskrnl_base_address = ntoskrnl->image_base;
+	std::uint32_t ntoskrnl_size = ntoskrnl->image_size;
 
-	if (ntoskrnl_base_address == 0)
+	if (ntoskrnl_base_address == 0 || ntoskrnl_size == 0)
 	{
-		std::println("unable to find ntoskrn's base address");
+		std::println("unable to parse ntoskrnl's info");
 
 		return 0;
 	}
@@ -173,6 +219,8 @@ std::uint8_t sys::set_up()
 	}
 
 	portable_executable::image_t* ntoskrnl_image = reinterpret_cast<portable_executable::image_t*>(ntoskrnl_dump.data());
+
+	add_module_to_list(ntoskrnl_name, ntoskrnl_dump, ntoskrnl_base_address, ntoskrnl_size);
 
 	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address(ntoskrnl_image, ntoskrnl_base_address);
 
@@ -244,7 +292,7 @@ std::vector<rtl_process_module_information_t> sys::kernel::get_loaded_modules()
 	return { start, end };
 }
 
-std::optional<rtl_process_module_information_t> sys::kernel::get_module_information(std::string_view target_module_name)
+std::optional<rtl_process_module_information_t> sys::kernel::get_module_information(const std::string_view target_module_name)
 {
 	const std::vector<rtl_process_module_information_t> loaded_modules = get_loaded_modules();
 
@@ -297,4 +345,23 @@ std::uint8_t sys::user::free_memory(void* address)
 	std::int32_t free_status = VirtualFree(address, 0, MEM_RELEASE);
 
 	return free_status != 0;
+}
+
+std::uint8_t sys::fs::exists(std::string_view path)
+{
+	return std::filesystem::exists(path);
+}
+
+std::uint8_t sys::fs::write_to_disk(const std::string_view full_path, const std::vector<std::uint8_t>& buffer)
+{
+	std::ofstream file(full_path.data(),std::ios::binary);
+
+	if (file.is_open() == 0)
+	{
+		return 0;
+	}
+
+	file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+
+	return file.good();
 }

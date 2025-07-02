@@ -537,6 +537,15 @@ std::uint8_t slat::try_hide_heap_pages(std::uint64_t heap_physical_address, std:
 
 std::uint64_t slat::translate_guest_physical_address(cr3 slat_cr3, virtual_address_t guest_physical_address, std::uint64_t* size_left_of_slat_page)
 {
+#ifdef _INTELMACHINE
+	hook_entry_t* hook_entry = hook_entry_t::find(used_hook_list_head, guest_physical_address.address >> 12, nullptr);
+
+	if (hook_entry != nullptr)
+	{
+		return hook_entry->get_original_pfn() << 12;
+	}
+#endif
+
 	return memory_manager::translate_host_virtual_address(slat_cr3, guest_physical_address, size_left_of_slat_page);
 }
 
