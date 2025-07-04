@@ -98,6 +98,14 @@ void add_module_to_list(const std::string& module_name, const std::vector<std::u
 	sys::kernel::modules_list[module_name] = kernel_module;
 }
 
+void erase_unused_modules(const std::unordered_map<std::string, sys::kernel_module_t>& modules_not_found)
+{
+	for (const auto& [module_name, module_info] : modules_not_found)
+	{
+		sys::kernel::modules_list.erase(module_name);
+	}
+}
+
 std::uint8_t sys::kernel::parse_modules()
 {
 	const auto loaded_modules = get_loaded_modules();
@@ -107,12 +115,16 @@ std::uint8_t sys::kernel::parse_modules()
 		return 0;
 	}
 
+	std::unordered_map<std::string, kernel_module_t> modules_not_found = modules_list;
+
 	for (const rtl_process_module_information_t& current_module : loaded_modules)
 	{
 		const std::string module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
 
 		if (modules_list.contains(module_name) == true)
 		{
+			modules_not_found.erase(module_name);
+
 			const kernel_module_t already_present_module = modules_list[module_name];
 
 			if (already_present_module.base_address == current_module.image_base && already_present_module.size == current_module.image_size)
@@ -130,6 +142,8 @@ std::uint8_t sys::kernel::parse_modules()
 
 		add_module_to_list(module_name, module_dump, current_module.image_base, current_module.image_size);
 	}
+
+	erase_unused_modules(modules_not_found);
 
 	return 1;
 }
