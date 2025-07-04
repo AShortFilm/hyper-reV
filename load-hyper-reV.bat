@@ -15,5 +15,5 @@ bcdedit /set hypervisorlaunchtype auto
 
 endlocal
 
+echo hyper-reV will load at next boot
 pause
-shutdown -r -t 0

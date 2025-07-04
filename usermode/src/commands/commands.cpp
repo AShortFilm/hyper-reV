@@ -399,7 +399,7 @@ void process_fl(CLI::App* fl)
 			std::println("{}. rip=0x{:X} rax=0x{:X} rcx=0x{:X}\nrdx=0x{:X} rbx=0x{:X} rsp=0x{:X} rbp=0x{:X}\nrsi=0x{:X} rdi=0x{:X} r8=0x{:X} r9=0x{:X}\nr10=0x{:X} r11=0x{:X} r12=0x{:X} r13=0x{:X} r14=0x{:X}\nr15=0x{:X} cr3=0x{:X}\n"
 				,i, log.rip, log.rax, log.rcx, log.rdx, log.rbx, log.rsp, log.rbp, log.rsi, log.rdi, log.r8, log.r9, log.r10, log.r11, log.r12, log.r13, log.r14, log.r15, log.cr3);
 
-			std::println("stack data:\n");
+			std::println("stack data:");
 			
 			for (const std::uint64_t stack_value : log.stack_data)
 			{
@@ -427,7 +427,7 @@ void process_hfpc(CLI::App* hfpc)
 
 CLI::App* init_lkm(CLI::App& app)
 {
-	CLI::App* lkm = app.add_subcommand("lkm", "print cached list of loaded kernel modules")->ignore_case();
+	CLI::App* lkm = app.add_subcommand("lkm", "print list of loaded kernel modules")->ignore_case();
 
 	return lkm;
 }
@@ -442,7 +442,7 @@ void process_lkm(CLI::App* lkm)
 
 CLI::App* init_kme(CLI::App& app)
 {
-	CLI::App* kme = app.add_subcommand("kme", "list the exports of a loaded kernel module (given the name)")->ignore_case();
+	CLI::App* kme = app.add_subcommand("kme", "list the exports of a loaded kernel module (when given the name)")->ignore_case();
 
 	add_command_option(kme, "module_name")->required();
 
