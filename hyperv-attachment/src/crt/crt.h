@@ -44,4 +44,27 @@ namespace crt
 		void lock();
 		void release();
 	};
+
+	class bitmap_t
+	{
+	protected:
+		constexpr static std::uint64_t bit_count_in_row = 64;
+
+		std::uint64_t* value = nullptr;
+		std::uint64_t value_count = 0;
+
+		std::uint64_t* get_row(std::uint64_t index) const;
+
+	public:
+		bitmap_t() = default;
+
+		void set_all() const;
+		void set(std::uint64_t index) const;
+		void clear(std::uint64_t index) const;
+
+		std::uint8_t is_set(std::uint64_t index) const;
+
+		void set_map_value(std::uint64_t* value);
+		void set_map_value_count(std::uint64_t value_count);
+	};
 }
