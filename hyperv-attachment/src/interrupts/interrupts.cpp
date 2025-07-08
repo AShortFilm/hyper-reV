@@ -6,6 +6,8 @@
 
 #include <intrin.h>
 
+#include "../memory_manager/heap_manager.h"
+
 extern "C"
 {
     std::uint64_t original_nmi_handler = 0;
@@ -16,7 +18,8 @@ extern "C"
 
 namespace
 {
-    inline std::uint64_t processor_nmi_states[512] = { };
+    constexpr std::uint64_t processor_nmi_state_count = 0x1000 / sizeof(std::uint64_t);
+    inline std::uint64_t* processor_nmi_states = nullptr;
 }
 
 void set_up_nmi_handling()
@@ -60,7 +63,9 @@ void set_up_nmi_handling()
 
 void interrupts::set_up()
 {
-	apic = apic_t::create_instance();
+    processor_nmi_states = static_cast<std::uint64_t*>(heap_manager::allocate_page());
+
+    apic = apic_t::create_instance();
 
 #ifdef _INTELMACHINE
     set_up_nmi_handling();
@@ -69,15 +74,22 @@ void interrupts::set_up()
 
 void interrupts::set_all_nmi_ready()
 {
-	for (std::uint64_t& row_state : processor_nmi_states)
-	{
+    for (std::uint64_t i = 0; i < processor_nmi_state_count; i++)
+    {
+        std::uint64_t& row_state = processor_nmi_states[i];
+
         row_state = UINT64_MAX;
-	}
+    }
 }
 
 std::uint64_t* get_processor_nmi_state_row(std::uint64_t apic_id)
 {
     const std::uint64_t row_id = apic_id / 64;
+
+    if (processor_nmi_state_count <= row_id)
+    {
+        return nullptr;
+    }
 
     return &processor_nmi_states[row_id];
 }
@@ -85,32 +97,47 @@ std::uint64_t* get_processor_nmi_state_row(std::uint64_t apic_id)
 void interrupts::set_nmi_ready(std::uint64_t apic_id)
 {
     std::uint64_t* row = get_processor_nmi_state_row(apic_id);
-    const std::uint64_t bit = apic_id % 64;
 
-    *row |= 1ull << bit;
+    if (row != nullptr)
+    {
+        const std::uint64_t bit = apic_id % 64;
+
+        *row |= 1ull << bit;
+    }
 }
 
 void interrupts::clear_nmi_ready(std::uint64_t apic_id)
 {
     std::uint64_t* row = get_processor_nmi_state_row(apic_id);
-    const std::uint64_t bit = apic_id % 64;
 
-    *row &= ~(1ull << bit);
+    if (row != nullptr)
+    {
+        const std::uint64_t bit = apic_id % 64;
+
+        *row &= ~(1ull << bit);
+    }
 }
 
 std::uint8_t interrupts::is_nmi_ready(std::uint64_t apic_id)
 {
-    const std::uint64_t row = *get_processor_nmi_state_row(apic_id);
+    const std::uint64_t* row = get_processor_nmi_state_row(apic_id);
+
+    if (row == nullptr)
+    {
+        return 0;
+    }
+
+    const std::uint64_t row_value = *row;
     const std::uint64_t bit = apic_id % 64;
 
-    return (row >> bit) & 1;
+    return (row_value >> bit) & 1;
 }
 
 void interrupts::process_nmi()
 {
     const std::uint64_t current_apic_id = apic_t::current_apic_id();
 
-	if (is_nmi_ready(current_apic_id) == 1)
+    if (is_nmi_ready(current_apic_id) == 1)
     {
         slat::flush_current_logical_processor_slat_cache();
 
