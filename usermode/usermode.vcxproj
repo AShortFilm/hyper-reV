@@ -166,6 +166,7 @@
     <ClCompile Include="ext\portable_executable\section_header.cpp" />
     <ClCompile Include="src\commands\commands.cpp" />
     <ClCompile Include="src\hook\hook.cpp" />
+    <ClCompile Include="src\hook\hook_disassembly.cpp" />
     <ClCompile Include="src\hook\kernel_detour_holder.cpp" />
     <ClCompile Include="src\hypercall\hypercall.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -188,6 +189,7 @@
     <ClInclude Include="ext\portable_executable\section_header.hpp" />
     <ClInclude Include="src\commands\commands.h" />
     <ClInclude Include="src\hook\hook.h" />
+    <ClInclude Include="src\hook\hook_disassembly.h" />
     <ClInclude Include="src\hook\kernel_detour_holder.h" />
     <ClInclude Include="src\hypercall\hypercall.h" />
     <ClInclude Include="src\system\system.h" />

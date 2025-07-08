@@ -60,6 +60,9 @@
     <ClCompile Include="src\hook\kernel_detour_holder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\hook\hook_disassembly.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="src\hypercall\vmexit.asm">
@@ -116,6 +119,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\hook\kernel_detour_holder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\hook\hook_disassembly.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
