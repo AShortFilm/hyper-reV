@@ -503,6 +503,22 @@ void process_dkm(CLI::App* dkm)
 	}
 }
 
+CLI::App* init_gva(CLI::App& app, CLI::Transformer& aliases_transformer)
+{
+	CLI::App* gva = app.add_subcommand("gva", "get the numerical value of an alias")->ignore_case();
+
+	add_transformed_command_option(gva, "alias_name", aliases_transformer)->required();
+
+	return gva;
+}
+
+void process_gva(CLI::App* gva)
+{
+	const std::uint64_t alias_value = get_command_option<std::uint64_t>(gva, "alias_name");
+
+	std::println("alias value: 0x{:X}", alias_value);
+}
+
 std::unordered_map<std::string, std::uint64_t> form_aliases()
 {
 	std::unordered_map<std::string, std::uint64_t> aliases = { { "current_cr3", sys::current_cr3 } };
@@ -543,6 +559,7 @@ void commands::process(const std::string command)
 	CLI::App* cgvm = init_cgvm(app, aliases_transformer);
 	CLI::App* akh = init_akh(app, aliases_transformer);
 	CLI::App* rkh = init_rkh(app, aliases_transformer);
+	CLI::App* gva = init_gva(app, aliases_transformer);
 	CLI::App* hgpp = init_hgpp(app, aliases_transformer);
 	CLI::App* fl = init_fl(app);
 	CLI::App* hfpc = init_hfpc(app);
@@ -563,6 +580,7 @@ void commands::process(const std::string command)
 		d_process_command(cgvm);
 		d_process_command(akh);
 		d_process_command(rkh);
+		d_process_command(gva);
 		d_process_command(hgpp);
 		d_process_command(fl);
 		d_process_command(hfpc);
