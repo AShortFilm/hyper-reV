@@ -31,7 +31,7 @@
 	- 6.3. Command aliases
 	- 6.4. Flushing logs
 7. How to compile / use
-	- 7.1. NASM installation
+	- 7.1. 'uefi-boot' compilation
 	- 7.2. Architecture-specific compilation
 	- 7.3. Load script
 	- 7.4. Usage with Secure Boot
@@ -298,8 +298,12 @@ stack data:
 
 # 7. How to compile / use
 
-## 7.1. NASM installation
+## 7.1. 'uefi-boot' compilation
 To compile the uefi-boot module, you must install NASM (https://nasm.us) and "check that the environment variable NASM_PREFIX is correctly set to NASM installation path" (quoted from https://github.com/ionescu007/VisualUefi/#Installation).
+
+All submodules must be cloned (VisualUEFI / EDK2). They will reside in uefi-boot\ext.
+
+In addition, you must build the EDK2 libraries by opening uefi-boot\ext\edk2\build\EDK-II.sln and building the entire solution.
 
 ## 7.2. Architecture-specific compilation
 The hyperv-attachment must be selected to be built for either Intel or AMD.
