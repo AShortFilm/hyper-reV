@@ -549,7 +549,7 @@ std::uint64_t slat::translate_guest_physical_address(cr3 slat_cr3, virtual_addre
 			*size_left_of_slat_page = (1ull << 12) - page_offset;
 		}
 
-		return hook_entry->get_original_pfn() << 12;
+		return (hook_entry->get_original_pfn() << 12) + guest_physical_address.offset;
 	}
 #endif
 
