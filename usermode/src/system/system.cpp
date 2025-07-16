@@ -106,20 +106,106 @@ void erase_unused_modules(const std::unordered_map<std::string, sys::kernel_modu
 	}
 }
 
+// requires SeDebugPriviledge, use PsLoadedModulesList instead unless if using before ntoskrnl.exe is parsed
+std::vector<rtl_process_module_information_t> get_loaded_modules_priviledged()
+{
+	std::uint32_t size_of_information = 0;
+
+	sys::user::query_system_information(11, nullptr, 0, &size_of_information);
+
+	if (size_of_information == 0)
+	{
+		return { };
+	}
+
+	std::vector<std::uint8_t> buffer(size_of_information);
+
+	std::uint32_t status = sys::user::query_system_information(11, buffer.data(), size_of_information, &size_of_information);
+
+	if (NT_SUCCESS(status) == false)
+	{
+		return { };
+	}
+
+	rtl_process_modules_t* process_modules = reinterpret_cast<rtl_process_modules_t*>(buffer.data());
+
+	rtl_process_module_information_t* start = &process_modules->modules[0];
+	rtl_process_module_information_t* end = start + process_modules->module_count;
+
+	return { start, end };
+}
+
+template <class t>
+t read_kernel_virtual_memory(std::uint64_t address)
+{
+	t buffer = t();
+
+	hypercall::read_guest_virtual_memory(&buffer, address, sys::current_cr3, sizeof(t));
+
+	return buffer;
+}
+
+std::wstring read_unicode_string(std::uint64_t address)
+{
+	std::uint16_t length = read_kernel_virtual_memory<std::uint16_t>(address);
+
+	if (length == 0)
+	{
+		return { };
+	}
+
+	std::uint64_t buffer_address = read_kernel_virtual_memory<std::uint64_t>(address + 8);
+
+	std::wstring string(length / 2, L'\0');
+
+	hypercall::read_guest_virtual_memory(string.data(), buffer_address, sys::current_cr3, length);
+
+	return string;
+}
+
+std::uint64_t get_ps_loaded_module_list()
+{
+	const std::string ntoskrnl_name = "ntoskrnl.exe";
+
+	if (sys::kernel::modules_list.contains(ntoskrnl_name) == 0)
+	{
+		return 0;
+	}
+
+	sys::kernel_module_t& ntoskrnl = sys::kernel::modules_list[ntoskrnl_name];
+
+	const std::string ps_loaded_module_list_name = "ntoskrnl.exe!PsLoadedModuleList";
+
+	return ntoskrnl.exports[ps_loaded_module_list_name];
+}
+
 std::uint8_t sys::kernel::parse_modules()
 {
-	const auto loaded_modules = get_loaded_modules();
+	const std::uint64_t ps_loaded_module_list = get_ps_loaded_module_list();
 
-	if (loaded_modules.size() <= 1)
+	if (ps_loaded_module_list == 0)
 	{
+		std::println("can't locate PsLoadedModuleList");
+
 		return 0;
 	}
 
 	std::unordered_map<std::string, kernel_module_t> modules_not_found = modules_list;
 
-	for (const rtl_process_module_information_t& current_module : loaded_modules)
+	const std::uint64_t start_entry = ps_loaded_module_list;
+
+	std::uint64_t current_entry = read_kernel_virtual_memory<std::uint64_t>(start_entry); // flink
+
+	while (current_entry != start_entry)
 	{
-		const std::string module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
+		kernel_module_t kernel_module = { };
+
+		std::uint64_t module_base_address = read_kernel_virtual_memory<std::uint64_t>(current_entry + 0x30); // DllBase
+		std::uint32_t module_size = read_kernel_virtual_memory<std::uint32_t>(current_entry + 0x40); // SizeOfImage
+		std::string module_name = user::to_string(read_unicode_string(current_entry + 0x58)); // BaseDllName
+
+		// current_entry must not be accessed after this point in this iteration
+		current_entry = read_kernel_virtual_memory<std::uint64_t>(current_entry); // flink
 
 		if (modules_list.contains(module_name) == true)
 		{
@@ -127,20 +213,20 @@ std::uint8_t sys::kernel::parse_modules()
 
 			const kernel_module_t already_present_module = modules_list[module_name];
 
-			if (already_present_module.base_address == current_module.image_base && already_present_module.size == current_module.image_size)
+			if (already_present_module.base_address == module_base_address && already_present_module.size == module_size)
 			{
 				continue;
 			}
 		}
 
-		std::vector<std::uint8_t> module_dump = dump_kernel_module(current_module.image_base);
+		std::vector<std::uint8_t> module_dump = dump_kernel_module(module_base_address);
 
 		if (module_dump.empty() == true)
 		{
 			continue;
 		}
 
-		add_module_to_list(module_name, module_dump, current_module.image_base, current_module.image_size);
+		add_module_to_list(module_name, module_dump, module_base_address, module_size);
 	}
 
 	erase_unused_modules(modules_not_found);
@@ -184,6 +270,87 @@ std::uint8_t sys::kernel::dump_module_to_disk(const std::string_view target_modu
 	return fs::write_to_disk(output_path, buffer);
 }
 
+struct ntoskrnl_information_t
+{
+	std::uint64_t base_address;
+	std::uint32_t size;
+
+	std::vector<std::uint8_t> dump;
+};
+
+std::optional<ntoskrnl_information_t> load_ntoskrnl_information()
+{
+	std::uint8_t desired_privilege_state = 1;
+	std::uint8_t previous_privilege_state = 0;
+
+	if (sys::user::set_debug_privilege(desired_privilege_state, &previous_privilege_state) == 0)
+	{
+		std::println("unable to acquire necessary privilege");
+
+		return std::nullopt;
+	}
+
+	const std::vector<rtl_process_module_information_t> loaded_modules = get_loaded_modules_priviledged();
+
+	sys::user::set_debug_privilege(previous_privilege_state, &desired_privilege_state);
+
+	for (const rtl_process_module_information_t& current_module : loaded_modules)
+	{
+		std::string_view current_module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
+
+		if (current_module_name == "ntoskrnl.exe")
+		{
+			std::vector<std::uint8_t> ntoskrnl_dump = dump_kernel_module(current_module.image_base);
+
+			if (ntoskrnl_dump.empty() == true)
+			{
+				std::println("unable to dump ntoskrnl.exe");
+
+				return std::nullopt;
+			}
+
+			ntoskrnl_information_t ntoskrnl_info = { };
+
+			ntoskrnl_info.base_address = current_module.image_base;
+			ntoskrnl_info.size = current_module.image_size;
+			ntoskrnl_info.dump = ntoskrnl_dump;
+
+			return ntoskrnl_info;
+		}
+	}
+
+	return std::nullopt;
+}
+
+std::uint8_t parse_ntoskrnl()
+{
+	std::optional<ntoskrnl_information_t> ntoskrnl_info = load_ntoskrnl_information();
+
+	if (ntoskrnl_info.has_value() == 0)
+	{
+		std::println("unable to load ntoskrnl.exe's information");
+
+		return 0;
+	}
+
+	std::vector<std::uint8_t>& ntoskrnl_dump = ntoskrnl_info->dump;
+
+	portable_executable::image_t* ntoskrnl_image = reinterpret_cast<portable_executable::image_t*>(ntoskrnl_dump.data());
+
+	add_module_to_list("ntoskrnl.exe", ntoskrnl_dump, ntoskrnl_info->base_address, ntoskrnl_info->size);
+
+	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address(ntoskrnl_image, ntoskrnl_info->base_address);
+
+	if (hook::kernel_detour_holder_base == 0)
+	{
+		std::println("unable to locate kernel hook holder");
+
+		return 0;
+	}
+
+	return 1;
+}
+
 std::uint8_t sys::set_up()
 {
 	current_cr3 = hypercall::read_guest_cr3();
@@ -195,52 +362,9 @@ std::uint8_t sys::set_up()
 		return 0;
 	}
 
-	if (acquire_privilege() == 0)
+	if (parse_ntoskrnl() == 0)
 	{
-		std::println("unable to acquire necessary privilege");
-
-		return 0;
-	}
-
-	const std::string ntoskrnl_name = "ntoskrnl.exe";
-
-	auto ntoskrnl = kernel::get_module_information(ntoskrnl_name);
-
-	if (ntoskrnl.has_value() == 0)
-	{
-		std::println("unable to locate ntoskrnl");
-
-		return 0;
-	}
-
-	std::uint64_t ntoskrnl_base_address = ntoskrnl->image_base;
-	std::uint32_t ntoskrnl_size = ntoskrnl->image_size;
-
-	if (ntoskrnl_base_address == 0 || ntoskrnl_size == 0)
-	{
-		std::println("unable to parse ntoskrnl's info");
-
-		return 0;
-	}
-
-	std::vector<std::uint8_t> ntoskrnl_dump = dump_kernel_module(ntoskrnl_base_address);
-
-	if (ntoskrnl_dump.empty() == true)
-	{
-		std::println("unable to dump ntoskrnl");
-
-		return 0;
-	}
-
-	portable_executable::image_t* ntoskrnl_image = reinterpret_cast<portable_executable::image_t*>(ntoskrnl_dump.data());
-
-	add_module_to_list(ntoskrnl_name, ntoskrnl_dump, ntoskrnl_base_address, ntoskrnl_size);
-
-	hook::kernel_detour_holder_base = find_kernel_detour_holder_base_address(ntoskrnl_image, ntoskrnl_base_address);
-
-	if (hook::kernel_detour_holder_base == 0)
-	{
-		std::println("unable to locate kernel hook holder");
+		std::println("unable to parse ntoskrnl.exe");
 
 		return 0;
 	}
@@ -267,62 +391,6 @@ void sys::clean_up()
 	hook::clean_up();
 }
 
-std::uint8_t sys::acquire_privilege()
-{
-	constexpr std::uint32_t debug_privilege_id = 20;
-
-	std::uint8_t previous_state = 0;
-
-	std::uint32_t status = user::adjust_privilege(debug_privilege_id, 1, 0, &previous_state);
-
-	return NT_SUCCESS(status);
-}
-
-std::vector<rtl_process_module_information_t> sys::kernel::get_loaded_modules()
-{
-	std::uint32_t size_of_information = 0;
-
-	user::query_system_information(11, nullptr, 0, &size_of_information);
-
-	if (size_of_information == 0)
-	{
-		return { };
-	}
-
-	std::vector<std::uint8_t> buffer(size_of_information);
-
-	std::uint32_t status = user::query_system_information(11, buffer.data(), size_of_information, &size_of_information);
-
-	if (NT_SUCCESS(status) == false)
-	{
-		return { };
-	}
-
-	rtl_process_modules_t* process_modules = reinterpret_cast<rtl_process_modules_t*>(buffer.data());
-
-	rtl_process_module_information_t* start = &process_modules->modules[0];
-	rtl_process_module_information_t* end = start + process_modules->module_count;
-
-	return { start, end };
-}
-
-std::optional<rtl_process_module_information_t> sys::kernel::get_module_information(const std::string_view target_module_name)
-{
-	const std::vector<rtl_process_module_information_t> loaded_modules = get_loaded_modules();
-
-	for (const rtl_process_module_information_t& current_module : loaded_modules)
-	{
-		std::string_view current_module_name = reinterpret_cast<const char*>(current_module.full_path_name + current_module.offset_to_file_name);
-
-		if (target_module_name == current_module_name)
-		{
-			return current_module;
-		}
-	}
-
-	return std::nullopt;
-}
-
 std::uint32_t sys::user::query_system_information(std::int32_t information_class, void* information_out, std::uint32_t information_size, std::uint32_t* returned_size)
 {
 	return NtQuerySystemInformation(static_cast<SYSTEM_INFORMATION_CLASS>(information_class), information_out, information_size, reinterpret_cast<ULONG*>(returned_size));
@@ -331,6 +399,15 @@ std::uint32_t sys::user::query_system_information(std::int32_t information_class
 std::uint32_t sys::user::adjust_privilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread_only, std::uint8_t* previous_enabled_state)
 {
 	return RtlAdjustPrivilege(privilege, enable, current_thread_only, previous_enabled_state);
+}
+
+std::uint8_t sys::user::set_debug_privilege(const std::uint8_t state, std::uint8_t* previous_state)
+{
+	constexpr std::uint32_t debug_privilege_id = 20;
+
+	std::uint32_t status = adjust_privilege(debug_privilege_id, state, 0, previous_state);
+
+	return NT_SUCCESS(status);
 }
 
 void* sys::user::allocate_locked_memory(std::uint64_t size, std::uint32_t protection)
@@ -359,6 +436,24 @@ std::uint8_t sys::user::free_memory(void* address)
 	std::int32_t free_status = VirtualFree(address, 0, MEM_RELEASE);
 
 	return free_status != 0;
+}
+
+std::string sys::user::to_string(const std::wstring& wstring)
+{
+	if (wstring.empty() == 1)
+	{
+		return { };
+	}
+
+	std::string converted_string = { };
+
+	std::ranges::transform(wstring,
+		std::back_inserter(converted_string), [](wchar_t character)
+		{
+			return static_cast<char>(character);
+		});
+
+	return converted_string;
 }
 
 std::uint8_t sys::fs::exists(std::string_view path)

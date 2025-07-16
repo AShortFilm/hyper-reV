@@ -11,15 +11,9 @@ namespace sys
 	std::uint8_t set_up();
 	void clean_up();
 
-	std::uint8_t acquire_privilege();
-
 	namespace kernel
 	{
-		std::vector<rtl_process_module_information_t> get_loaded_modules();
-		std::optional<rtl_process_module_information_t> get_module_information(std::string_view target_module_name);
-
 		std::uint8_t parse_modules();
-
 		std::uint8_t dump_module_to_disk(std::string_view target_module_name, const std::string_view output_directory);
 
 		inline std::unordered_map<std::string, kernel_module_t> modules_list = { };
@@ -28,9 +22,14 @@ namespace sys
 	namespace user
 	{
 		std::uint32_t query_system_information(std::int32_t information_class, void* information_out, std::uint32_t information_size, std::uint32_t* returned_size);
+
 		std::uint32_t adjust_privilege(std::uint32_t privilege, std::uint8_t enable, std::uint8_t current_thread_only, std::uint8_t* previous_enabled_state);
+		std::uint8_t set_debug_privilege(std::uint8_t state, std::uint8_t* previous_state);
+
 		void* allocate_locked_memory(std::uint64_t size, std::uint32_t protection);
 		std::uint8_t free_memory(void* address);
+
+		std::string to_string(const std::wstring& wstring);
 	}
 
 	namespace fs
