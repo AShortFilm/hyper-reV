@@ -303,6 +303,12 @@ To compile the uefi-boot module, you must install NASM (https://nasm.us) and "ch
 
 All submodules must be cloned (VisualUEFI / EDK2). They will reside in uefi-boot\ext.
 
+The command to clone the repository (including submodules):
+
+```
+git clone --recurse-submodules https://github.com/noahware/hyper-reV.git
+```
+
 In addition, you must build the EDK2 libraries by opening uefi-boot\ext\edk2\build\EDK-II.sln and building the entire solution.
 
 ## 7.2. Architecture-specific compilation
